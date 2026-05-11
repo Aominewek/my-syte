@@ -1,0 +1,495 @@
+:root {
+    --sng-blue: #004a99; /* Основной синий СНГ */
+    --sng-dark: #002d5a; /* Темно-синий, для верхних панелей, футеров */
+    --accent: #d4af37; /* Золотой/Желтый, для акцентов, кнопок */
+    --success: #218838; /* Зеленый, для подтверждений */
+    --danger: #c82333; /* Красный, для ошибок, предупреждений */
+    --bg: #f0f2f5; /* Светло-серый, основной фон */
+    --bg-content: #ffffff; /* Белый, фон для карточек, таблиц */
+    --border: #dcdfe6; /* Светло-серый, для рамок */
+    --text: #2c3e50; /* Темно-серый, основной текст */
+    --text-muted: #6c757d; /* Серый, для вторичного текста */
+    --secondary-btn: #6c757d; /* Цвет для вторичных кнопок */
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+
+/* --- Экран авторизации --- */
+#auth-screen { 
+    position: fixed; inset: 0; 
+    background: linear-gradient(to right, var(--sng-dark), var(--sng-blue)); /* Градиент для более эффектного фона */
+    display: flex; align-items: center; justify-content: center; z-index: 1000; 
+}
+.auth-card { 
+    background: var(--bg-content); 
+    padding: 40px; 
+    border-radius: 8px; 
+    width: 360px; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3); 
+    text-align: center;
+    border-top: 5px solid var(--accent);
+}
+.auth-logo { 
+    color: var(--sng-blue); 
+    font-weight: 900; 
+    font-size: 28px; /* Увеличил размер */
+    margin-bottom: 10px; 
+    letter-spacing: 1px; 
+    text-shadow: 0 0 5px rgba(0,0,0,0.1);
+}
+#auth-screen h3 { margin-top: 0; color: var(--text-muted); font-size: 18px; }
+#auth-screen input { margin-bottom: 15px; padding: 12px; border-radius: 4px; border: 1px solid var(--border); }
+
+/* --- Основное приложение --- */
+#main-app { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+.sidebar { 
+    background: var(--sng-dark); 
+    color: white; 
+    display: flex; 
+    flex-direction: column; 
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+.sidebar-header { 
+    padding: 25px; 
+    border-bottom: 1px solid rgba(255,255,255,0.1); 
+    text-align: center;
+}
+.sidebar-header b { 
+    display: block; 
+    font-size: 24px; 
+    color: var(--accent); 
+    letter-spacing: 0.5px;
+}
+.sidebar-header span { 
+    font-size: 13px; 
+    text-transform: uppercase; 
+    opacity: 0.7; 
+}
+
+.menu-item { 
+    padding: 15px 25px; 
+    cursor: pointer; 
+    border-left: 4px solid transparent; 
+    transition: all 0.3s ease;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.05); /* Разделитель между пунктами меню */
+}
+.menu-item:hover { 
+    background: rgba(255,255,255,0.05); 
+    color: var(--accent);
+}
+.menu-item.active { 
+    background: rgba(255,255,255,0.1); 
+    border-left-color: var(--accent); 
+    color: var(--accent); 
+    font-weight: 600;
+}
+
+.sidebar-footer {
+    margin-top: auto; /* Прижимаем к низу */
+    padding: 20px 25px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.1);
+    text-align: center;
+}
+#user-info { font-size: 13px; opacity: 0.8; margin-bottom: 10px;}
+
+/* --- Контентная область --- */
+.content-area { 
+    padding: 30px; 
+    overflow-y: auto; 
+    background: var(--bg);
+}
+.page-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 25px; 
+    border-bottom: 2px solid var(--sng-blue); /* Более яркая граница */
+    padding-bottom: 10px; 
+}
+.page-header h2 { 
+    margin: 0; 
+    font-size: 28px; 
+    color: var(--sng-blue); 
+    font-weight: 600;
+}
+
+/* --- Поле поиска --- */
+#search-wrapper { margin-bottom: 25px; }
+.search-input { 
+    font-size: 16px; 
+    border: 2px solid var(--sng-blue); 
+    border-radius: 8px; 
+    padding: 12px 15px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.search-input:focus { 
+    border-color: var(--accent); 
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.3); /* Золотая подсветка при фокусе */
+    outline: none;
+}
+
+/* --- Формы и инпуты --- */
+input, select, textarea { 
+    width: 100%; 
+    padding: 10px; 
+    border: 1px solid var(--border); 
+    border-radius: 4px; 
+    margin-top: 5px;
+    font-size: 15px;
+}
+input:focus, select:focus, textarea:focus {
+    border-color: var(--sng-blue);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 74, 153, 0.2);
+}
+label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-muted); }
+
+/* --- Кнопки --- */
+.btn { 
+    border: none; 
+    padding: 10px 20px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    transition: all 0.2s ease;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.btn-block { width: 100%; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+.btn-primary { background: var(--sng-blue); color: white; }
+.btn-primary:hover { background: #003a7a; box-shadow: 0 5px 15px rgba(0, 74, 153, 0.3); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #1a772f; box-shadow: 0 5px 15px rgba(33, 136, 56, 0.3); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: #aa1a2a; box-shadow: 0 5px 15px rgba(200, 35, 51, 0.3); }
+.btn-secondary { background: var(--secondary-btn); color: white; }
+.btn-secondary:hover { background: #5a6268; box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3); }
+.btn-accent { background: var(--accent); color: var(--sng-dark); font-weight: bold;}
+.btn-accent:hover { background: #b89631; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3); }
+
+/* --- Карточки --- */
+.grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+    gap: 25px; 
+}
+.card { 
+    background: var(--bg-content); 
+    border-radius: 8px; 
+    padding: 20px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); /* Более выраженная тень */
+    border-top: 5px solid var(--sng-blue); 
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+.card-num { 
+    position: absolute; 
+    top: 15px; 
+    right: 15px; 
+    font-weight: bold; 
+    color: var(--sng-blue); 
+    font-size: 15px; 
+}
+.card h4 { 
+    margin: 0 0 10px 0; 
+    font-size: 19px; 
+    color: var(--sng-dark);
+    font-weight: 600;
+}
+
+/* --- Таймеры --- */
+.timer-box { margin: 15px 0; }
+.progress-bg { 
+    height: 8px; 
+    background: #e0e0e0; /* Чуть темнее фон прогресса */
+    border-radius: 4px; 
+    overflow: hidden; 
+    margin-top: 5px;
+}
+.progress-fill { 
+    height: 100%; 
+    transition: width 0.3s ease; /* Анимация при изменении ширины */
+}
+.stall-alert { 
+    background: var(--danger); 
+    color: white; 
+    text-align: center; 
+    font-size: 11px; 
+    padding: 3px 6px;
+    border-radius: 3px; 
+    margin-top: 5px; 
+    animation: pulse 1.5s infinite; 
+}
+@keyframes pulse { 0% {opacity: 1} 50% {opacity: 0.5} 100% {opacity: 1} }
+
+/* --- Таблицы --- */
+.table-container { 
+    background: var(--bg-content); 
+    border-radius: 8px; 
+    overflow-x: auto; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom: 20px; /* Добавим нижний отступ, чтобы пагинация не сливалась */
+}
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    min-width: 1000px; 
+}
+th { 
+    background: var(--sng-dark); /* Темно-синий заголовок */
+    color: white;
+    padding: 12px 15px; 
+    text-align: left; 
+    font-size: 13px; 
+    white-space: nowrap; 
+    font-weight: 600;
+}
+td { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid #eee; 
+    font-size: 14px; 
+}
+td:first-child { font-weight: bold; color: var(--sng-blue); } /* Выделяем № талона */
+
+/* --- Пагинация --- */
+.pagination { 
+    display: flex; 
+    justify-content: center; 
+    margin-top: 25px; 
+    margin-bottom: 15px; /* Отступ сверху */
+}
+.page-item { 
+    padding: 8px 15px; 
+    margin: 0 5px; 
+    border: 1px solid var(--border); 
+    border-radius: 4px; 
+    cursor: pointer; 
+    background: white; 
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+.page-item.active { 
+    background: var(--sng-blue); 
+    color: white; 
+    border-color: var(--sng-blue); 
+    font-weight: bold;
+}
+.page-item:not(.active):hover { 
+    background: #e9ecef; 
+    border-color: #ced4da;
+}
+.page-item.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    background: #f8f9fa;
+}
+
+
+/* --- Уведомления (Toast) --- */
+#toast-container { 
+    position: fixed; 
+    bottom: 25px; 
+    right: 25px; 
+    z-index: 10000; 
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.toast { 
+    background: #333; /* Темный фон для уведомлений */
+    color: white; 
+    padding: 14px 25px; 
+    border-radius: 4px; 
+    margin-top: 10px; 
+    animation: slideIn 0.3s ease forwards;
+    border-left: 5px solid var(--accent); /* Акцентная полоса */
+    font-size: 14px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+@keyframes slideIn { from {transform: translateX(100%); opacity: 0;} to {transform: translateX(0); opacity: 1;} }
+
+/* --- Модальные окна --- */
+.modal-overlay { 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,0.7); /* Более темный фон */
+    display: none; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 5000; 
+    backdrop-filter: blur(5px); /* Легкое размытие фона */
+}
+.modal-content { 
+    background: var(--bg-content); 
+    width: 500px; 
+    max-width: 90%; /* Адаптивность */
+    border-radius: 8px; 
+    overflow: hidden; 
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
+}
+.modal-header { 
+    background: var(--sng-dark); 
+    color: white; 
+    padding: 15px 20px; 
+    font-weight: bold; 
+    font-size: 18px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+.modal-header .close-btn { 
+    background: none; 
+    border: none; 
+    color: white; 
+    font-size: 24px; 
+    cursor: pointer; 
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+.modal-header .close-btn:hover { opacity: 1; }
+.modal-body { padding: 25px 20px; }
+.form-group { margin-bottom: 15px; }
+.form-group label { margin-bottom: 8px; color: var(--text-muted); }
+.modal-footer { 
+    padding: 15px 20px; 
+    border-top: 1px solid #eee; 
+    text-align: right; 
+    gap: 10px; 
+    display: flex; 
+    justify-content: flex-end; 
+    background: #f8f9fa; /* Легкий фон футера */
+}
+
+/* --- Блок маршрутизации --- */
+.permit-section { 
+    border: 1px solid var(--border); 
+    border-radius: 8px; 
+    padding: 20px; 
+    margin-top: 20px; 
+    background: #fdfdfd;
+}
+.permit-section h4 { 
+    margin-top: 0; 
+    color: var(--sng-blue); 
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+.permit-section-actions { 
+    margin-top: 20px; 
+    display: flex; 
+    gap: 10px; 
+    justify-content: flex-end;
+}
+
+/* --- Адаптивность --- */
+@media (max-width: 1024px) {
+    #main-app { grid-template-columns: 200px 1fr; }
+    .sidebar-header b { font-size: 20px; }
+    .menu-item { padding: 12px 20px; font-size: 14px; }
+    .content-area { padding: 20px; }
+    .page-header h2 { font-size: 24px; }
+    .modal-content { width: 90%; }
+}
+
+@media (max-width: 768px) {
+    #main-app { grid-template-columns: 1fr; } /* Скрываем сайдбар на мобильных, или делаем его выдвижным */
+    .sidebar { display: none; /* Или реализуйте выдвижное меню */ }
+    .content-area { padding-left: 15px; padding-right: 15px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    #search-wrapper { width: 100%; margin-bottom: 15px; }
+    .btn { padding: 8px 15px; }
+}
+
+/* --- ТОЛЬКО МОБИЛЬНАЯ ВЕРСИЯ --- */
+@media screen and (max-width: 768px) {
+    /* Переключаем макет в один столбец */
+    #main-app {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Боковое меню сверху */
+    .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        padding: 10px !important;
+    }
+
+    /* Меню в виде кнопок в ряд */
+    #menu-container {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+        margin: 10px 0 !important;
+    }
+
+    .menu-item {
+        flex: 1 1 auto !important;
+        padding: 8px !important;
+        text-align: center !important;
+        font-size: 12px !important;
+    }
+
+    .sidebar-footer {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 11px !important;
+    }
+
+    /* Контент на всю ширину */
+    .content-area {
+        padding: 10px !important;
+    }
+
+    /* Карточки в одну колонку */
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Поиск на всю ширину */
+    .search-input {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Таблицы не ломаются, а скроллятся вбок */
+    .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    table {
+        min-width: 700px !important; /* Чтобы колонки не слипались */
+        font-size: 12px !important;
+    }
+
+    /* Модальное окно талона на весь экран */
+    .modal-content {
+        width: 95% !important;
+        margin: 5px !important;
+        padding: 15px !important;
+    }
+
+    /* Кнопки действий крупнее для пальца */
+    .btn {
+        padding: 12px !important;
+        font-size: 14px !important;
+    }
+
+    /* Скрыть лишние элементы в шапке на мобиле */
+    .sidebar-header span {
+        display: none !important;
+    }
+}

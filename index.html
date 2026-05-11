@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ЦТБ Сургутнефтегаз</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="auth-screen">
+        <div class="auth-card">
+            <div class="auth-logo">СУРГУТНЕФТЕГАЗ</div>
+            <h3>Контроль транспорта ЦТБ</h3>
+            <input type="text" id="login" placeholder="Логин">
+            <input type="password" id="pass" placeholder="Пароль">
+            <button class="btn btn-primary btn-block" onclick="app.login()">ВОЙТИ</button>
+        </div>
+    </div>
+
+    <div id="main-app" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-header"><b>ЦТБ</b><span>Контроль</span></div>
+            <nav id="menu-container"></nav>
+            <div class="sidebar-footer">
+                <div id="user-info"></div>
+                <button class="btn btn-danger btn-block btn-sm" onclick="location.reload()">ВЫХОД</button>
+            </div>
+        </aside>
+        <main class="content-area">
+            <header class="page-header"><h2 id="page-title">Раздел</h2></header>
+            <div id="search-wrapper"><input type="text" id="global-search" class="search-input" placeholder="Поиск..." oninput="app.handleSearch(this.value)"></div>
+            <div id="data-container"></div>
+        </main>
+    </div>
+
+    <!-- МОДАЛКА МАРШРУТИЗАЦИИ -->
+    <div id="modal-permit" class="modal-overlay">
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">Заполнение талона-разрешения</div>
+            <div class="modal-body">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group"><label>Заказчик</label><input type="text" id="p-customer"></div>
+                    <div class="form-group"><label>Инженер ООГ</label><input type="text" id="p-eng-name"></div>
+                    <div class="form-group"><label>№ крана</label><input type="text" id="p-crane"></div>
+                    <div class="form-group"><label>№ стеллажа</label><input type="text" id="p-shelf"></div>
+                    <div class="form-group"><label>Типоразмер труб</label><input type="text" id="p-pipe"></div>
+                    <div class="form-group"><label>Количество</label><input type="text" id="p-qty"></div>
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <label>Погрузка:</label>
+                    <input type="checkbox" id="p-type-1" style="width:auto;"> Труба
+                    <input type="checkbox" id="p-type-2" style="width:auto; margin-left:20px;"> Патрубки
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="app.savePermit()">ПЕЧАТЬ ТАЛОНА</button>
+                <button class="btn btn-secondary" onclick="ui.closeModal()">ОТМЕНА</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>
