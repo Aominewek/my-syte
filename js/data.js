@@ -11,12 +11,17 @@ const DRIVERS = [
     "Андреев Андрей Андреевич", "Борисов Борис Борисович"
 ];
 
+const CRANES = ["Кран №1", "Кран №2", "Кран №3", "Кран №4"];
+
+const CRANE_LIMIT_MIN = 30;
+
 const USERS = {
     'AndrianovAV': { pass: '123', role: 'admin', name: 'Андриянов А.В.' },
     'KhvorostyanyukMU': { pass: '123', role: 'admin', name: 'Хворостянюк М.Ю.' },
-    'kpp':   { pass: '123', role: 'kpp',   name: 'КПП' },
-    'sklad': { pass: '123', role: 'store', name: 'Кладовщик' },
-    'eng':   { pass: '123', role: 'eng',   name: 'Инженер ЦТБ' }
+    'boss':         { pass: '123', role: 'boss',  name: 'Руководитель' },
+    'kpp':          { pass: '123', role: 'kpp',   name: 'КПП' },
+    'sklad':        { pass: '123', role: 'store', name: 'Кладовщик' },
+    'eng':          { pass: '123', role: 'eng',   name: 'Инженер ЦТБ' }
 };
 
 const STATUS = {
@@ -24,6 +29,8 @@ const STATUS = {
     STORE_IN: "У кладовщика",
     STORE_OUT: "Выехал от кладовщика",
     ENG_IN: "У инженера",
-    READY: "Получил талон, уехал от инженера",
+    READY: "Получил талон",
+    LOADING: "На погрузке",
+    LOADED: "Погрузка завершена",
     EXITED: "Выехал"
 };

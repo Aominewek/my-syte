@@ -2,23 +2,50 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>ЦТБ Сургутнефтегаз</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ЦТБ Сургутнефтегаз — Контроль транспорта</title>
+    <meta name="description" content="Система контроля транспорта ЦТБ: регистрация ТС, статусы, погрузка под кранами, учёт простоев, аналитика и отчёты.">
+    <meta name="theme-color" content="#002d5a">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ЦТБ Контроль">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- ===== ЭКРАН АВТОРИЗАЦИИ ===== -->
     <div id="auth-screen">
         <div class="auth-card">
-            <div class="auth-logo">СУРГУТНЕФТЕГАЗ</div>
+            <div class="auth-logo">
+                <img src="assets/logo.svg" alt="ЦТБ">
+                <span class="logo-text">СУРГУТНЕФТЕГАЗ</span>
+            </div>
             <h3>Контроль транспорта ЦТБ</h3>
-            <input type="text" id="login" placeholder="Логин">
-            <input type="password" id="pass" placeholder="Пароль">
+            <input type="text" id="login" placeholder="Логин" autocomplete="username">
+            <input type="password" id="pass" placeholder="Пароль" autocomplete="current-password">
             <button class="btn btn-primary btn-block" onclick="app.login()">ВОЙТИ</button>
+            <div class="auth-hint">
+                <b>Демо-доступ:</b><br>
+                admin — AndrianovAV / 123<br>
+                КПП — kpp / 123<br>
+                Склад — sklad / 123<br>
+                Инженер — eng / 123<br>
+                Руководитель — boss / 123
+            </div>
         </div>
     </div>
 
+    <!-- ===== ОСНОВНОЕ ПРИЛОЖЕНИЕ ===== -->
     <div id="main-app" style="display: none;">
         <aside class="sidebar">
-            <div class="sidebar-header"><b>ЦТБ</b><span>Контроль</span></div>
+            <div class="sidebar-header">
+                <img src="assets/logo.svg" alt="ЦТБ">
+                <b>ЦТБ</b>
+                <span>Контроль транспорта</span>
+            </div>
             <nav id="menu-container"></nav>
             <div class="sidebar-footer">
                 <div id="user-info"></div>
@@ -26,18 +53,24 @@
             </div>
         </aside>
         <main class="content-area">
-            <header class="page-header"><h2 id="page-title">Раздел</h2></header>
-            <div id="search-wrapper"><input type="text" id="global-search" class="search-input" placeholder="Поиск..." oninput="app.handleSearch(this.value)"></div>
+            <header class="page-header">
+                <h2 id="page-title">Раздел</h2>
+                <div class="ph-actions" id="page-actions"></div>
+            </header>
+            <div id="search-wrapper"><input type="text" id="global-search" class="search-input" placeholder="Поиск по номеру, водителю, талону..." oninput="app.handleSearch(this.value)"></div>
             <div id="data-container"></div>
         </main>
     </div>
 
-    <!-- МОДАЛКА МАРШРУТИЗАЦИИ -->
+    <!-- ===== МОДАЛКА МАРШРУТИЗАЦИИ ===== -->
     <div id="modal-permit" class="modal-overlay">
-        <div class="modal-content" style="width: 600px;">
-            <div class="modal-header">Заполнение талона-разрешения</div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Заполнение талона-разрешения</span>
+                <button class="close-btn" onclick="ui.closeModal()">&times;</button>
+            </div>
             <div class="modal-body">
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group"><label>Заказчик</label><input type="text" id="p-customer"></div>
                     <div class="form-group"><label>Инженер ООГ</label><input type="text" id="p-eng-name"></div>
                     <div class="form-group"><label>№ крана</label><input type="text" id="p-crane"></div>
@@ -47,8 +80,12 @@
                 </div>
                 <div class="form-group" style="margin-top:10px;">
                     <label>Погрузка:</label>
-                    <input type="checkbox" id="p-type-1" style="width:auto;"> Труба
-                    <input type="checkbox" id="p-type-2" style="width:auto; margin-left:20px;"> Патрубки
+                    <label style="display:inline-flex; align-items:center; gap:6px; font-weight:500;">
+                        <input type="checkbox" id="p-type-1" style="width:auto;"> Труба
+                    </label>
+                    <label style="display:inline-flex; align-items:center; gap:6px; font-weight:500; margin-left:20px;">
+                        <input type="checkbox" id="p-type-2" style="width:auto;"> Патрубки
+                    </label>
                 </div>
             </div>
             <div class="modal-footer">
@@ -58,8 +95,41 @@
         </div>
     </div>
 
+    <!-- ===== МОДАЛКА ЗАГРУЗКИ ПОД КРАНОМ ===== -->
+    <div id="modal-crane" class="modal-overlay">
+        <div class="modal-content" style="width: 440px;">
+            <div class="modal-header">
+                <span>Погрузка под краном</span>
+                <button class="close-btn" onclick="ui.closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="crane-info" style="font-size:14px; color:var(--text-muted); margin-top:0;"></p>
+                <div class="form-group">
+                    <label>Выберите кран</label>
+                    <select id="crane-select"></select>
+                </div>
+                <p id="crane-limit-hint" style="font-size:12.5px; color:var(--text-muted);"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="crane-start-btn" onclick="app.startCrane(app.editingId)">НАЧАТЬ ПОГРУЗКУ</button>
+                <button class="btn btn-accent" id="crane-finish-btn" style="display:none;" onclick="app.finishCrane(app.editingId)">ЗАВЕРШИТЬ ПОГРУЗКУ</button>
+                <button class="btn btn-secondary" onclick="ui.closeModal()">ОТМЕНА</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== КОНТЕЙНЕР УВЕДОМЛЕНИЙ ===== -->
+    <div id="toast-container"></div>
+
     <script src="js/data.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/ui.js"></script>
+    <script>
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js').catch(function () {});
+            });
+        }
+    </script>
 </body>
 </html>
