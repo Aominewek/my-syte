@@ -674,3 +674,128 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
     .analytics-toolbar .form-group { min-width: 100%; }
     .btn { padding: 10px 13px !important; }
 }
+/* ============================================================
+   ƒŒœŒÀÕ≈Õ»ﬂ: ”¬≈ƒŒÃÀ≈Õ»ﬂ / œ–Œ‘»À‹ /  ŒÃ¡Œ¡Œ — / œŒƒƒ≈–∆ ¿ / ‘”“≈–
+   ============================================================ */
+.top-tools { display: inline-flex; gap: 8px; align-items: center; }
+.tool-wrap { position: relative; }
+.icon-btn {
+    background: var(--sng-blue);
+    border: none;
+    color: #fff;
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: var(--transition);
+    position: relative;
+}
+.icon-btn:hover { background: var(--sng-blue-2); }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bell-count {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px; height: 18px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 6px rgba(200, 35, 51, 0.5);
+}
+.popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 320px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: var(--bg-content);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    z-index: 300;
+    padding: 6px;
+    display: none;
+}
+.popover.open { display: block; animation: fadeUp 0.2s ease; }
+.pop-head {
+    font-weight: 700;
+    color: var(--sng-dark);
+    font-size: 13.5px;
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid #edf0f5;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.pop-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.4;
+    transition: background 0.15s;
+}
+.pop-item:hover { background: #f4f8fd; }
+.pop-empty { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.profile-line { padding: 6px 10px; font-size: 13.5px; color: var(--text); }
+.profile-line b { color: var(--sng-dark); font-size: 14px; }
+
+/* --- Combobox (‚˚Ô‡‰‡˛˘ËÈ ÒÔËÒÓÍ Ò ÔÓËÒÍÓÏ) --- */
+.combo { position: relative; }
+.combo input { margin-bottom: 0; }
+.combo-list {
+    border: 1.5px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #fff;
+    display: block;
+    margin-top: -6px;
+}
+.combo-item {
+    padding: 9px 12px;
+    cursor: pointer;
+    font-size: 13.5px;
+    border-bottom: 1px solid #f1f3f7;
+    transition: background 0.12s;
+}
+.combo-item:hover { background: #eef2fa; }
+.combo-item.sel { background: #e2edfb; color: var(--sng-blue); font-weight: 600; }
+.combo-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+/* --- œÓ‰‰ÂÊÍ‡ --- */
+.msg-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: #fff;
+}
+.msg-card.unanswered { border-left: 4px solid var(--accent); }
+.msg-head { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 6px; }
+.msg-head span { color: var(--text-muted); }
+.msg-head small { color: var(--text-muted); margin-left: auto; }
+.msg-text { font-size: 14px; line-height: 1.5; }
+.msg-answer { margin-top: 8px; padding: 8px 10px; background: #f2f8f3; border-radius: 6px; font-size: 13px; }
+.msg-pending { margin-top: 8px; padding: 8px 10px; background: #fdf6e3; border-radius: 6px; font-size: 13px; color: #9a7b16; }
+.msg-reply { display: flex; gap: 8px; margin-top: 10px; }
+.msg-reply input { flex: 1; }
+.msg-form textarea { resize: vertical; }
+
+/* --- ‘ÛÚÂ --- */
+.app-footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    padding: 14px 0 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 10px;
+}

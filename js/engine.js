@@ -1,5 +1,5 @@
 ﻿const app = {
-    db: [], log: [], users: [], trucks: [], drivers: [],
+    db: [], log: [], users: [], trucks: [], drivers: [], msgs: [],
     user: null, searchQuery: '', currentPage: 'dash', itemsPerPage: 15, editingId: null,
     SALT: 'ctb-2026-',
 
@@ -19,11 +19,38 @@
         return (h >>> 0).toString(16);
     },
 
+    repairMojibake(s) {
+        if (typeof s !== 'string' || !s) return s;
+        if (!/[А-Яа-яЁёРЎР’Р С…]/.test(s)) return s;
+        try {
+            const enc = new TextEncoder();
+            const bytes = enc.encode(s);
+            const dec = new TextDecoder('utf-8');
+            const out = dec.decode(bytes);
+            if (out.includes('\uFFFD')) return s;
+            if (/[А-Яа-яЁё]{2,}/.test(out) && out.length >= 2) return out;
+        } catch (e) {}
+        return s;
+    },
+
     init() {
-        this.db = this.load(STORAGE_KEYS.db, []);
-        this.log = this.load(STORAGE_KEYS.log, []);
-        this.trucks = this.load(STORAGE_KEYS.trucks, DEFAULT_TRUCKS.filter((_, i) => i < 12));
+        this.db = this.load(STORAGE_KEYS.db, []).map(e => {
+            e.truck = this.repairMojibake(e.truck);
+            e.driver = this.repairMojibake(e.driver);
+            e.status = this.repairMojibake(e.status);
+            e.crane = this.repairMojibake(e.crane);
+            return e;
+        });
+        this.log = this.load(STORAGE_KEYS.log, []).map(l => {
+            l.act = this.repairMojibake(l.act);
+            l.inf = this.repairMojibake(l.inf);
+            l.usr = this.repairMojibake(l.usr);
+            l.fs = this.repairMojibake(l.fs);
+            return l;
+        });
+        this.trucks = this.load(STORAGE_KEYS.trucks, DEFAULT_TRUCKS);
         this.drivers = this.load(STORAGE_KEYS.drivers, DEFAULT_DRIVERS);
+        this.msgs = this.load('sng_ctb_msgs', []);
         this.users = this.load(STORAGE_KEYS.users, null);
         if (!Array.isArray(this.users) || !this.users.length) this.seedUsers();
         this.restoreSession();
@@ -57,23 +84,46 @@
         const ident = document.getElementById('login').value.trim();
         const pass = document.getElementById('pass').value;
         const err = document.getElementById('auth-error');
-        if (err) err.textContent = '';
-        const u = this.users.find(x =>
-            x.login.toLowerCase() === ident.toLowerCase() || x.name.toLowerCase() === ident.toLowerCase());
-        if (u && this.hash(pass) === u.pass) {
-            this.user = u;
-            this.saveSession();
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'grid';
-            ui.init();
-            this.logAction('Р’С…РѕРґ', `РђРІС‚РѕСЂРёР·Р°С†РёСЏ: ${u.name} (${ROLES[u.role]})`);
-        } else if (err) {
-            err.textContent = 'РќРµРІРµСЂРЅС‹Рµ СѓС‡С‘С‚РЅС‹Рµ РґР°РЅРЅС‹Рµ. РџСЂРѕРІРµСЂСЊС‚Рµ Р»РѕРіРёРЅ Рё РїР°СЂРѕР»СЊ.';
+        if (err) { err.textContent = ''; err.classList.remove('show'); }
+        const low = ident.toLowerCase();
+
+        const isAdminIdent = this.users.some(x => x.role === 'admin' && x.login.toLowerCase() === low);
+        let u = null;
+
+        if (isAdminIdent) {
+            u = this.users.find(x => x.role === 'admin' && x.login.toLowerCase() === low);
+            if (!u || this.hash(pass) !== u.pass) {
+                if (err) { err.textContent = 'Неверный пароль администратора'; err.classList.add('show'); }
+                return;
+            }
+        } else {
+            const words = ident.split(/\s+/).filter(w => w.length > 0);
+            const hasShort = /\./.test(ident) || /^\S+\s+\S+$/.test(ident) || /\d/.test(ident);
+            if (words.length < 3 || hasShort) {
+                if (err) { err.textContent = 'Укажите полное ФИО: Фамилия Имя Отчество, без сокращений'; err.classList.add('show'); }
+                return;
+            }
+            u = this.users.find(x => x.name.toLowerCase() === low);
+            if (!u) {
+                if (err) { err.textContent = 'Пользователь не найден. Обратитесь к администратору.'; err.classList.add('show'); }
+                return;
+            }
+            if (this.hash(pass) !== u.pass) {
+                if (err) { err.textContent = 'Неверный табельный номер'; err.classList.add('show'); }
+                return;
+            }
         }
+
+        this.user = u;
+        this.saveSession();
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'grid';
+        ui.init();
+        this.logAction('Вход', `Авторизация: ${u.name} (${ROLES[u.role]})`);
     },
 
     logout() {
-        if (this.user) this.logAction('Р’С‹С…РѕРґ', `Р—Р°РІРµСЂС€РёР» СЃРµР°РЅСЃ: ${this.user.name}`);
+        if (this.user) this.logAction('Выход', `Завершил сеанс: ${this.user.name}`);
         this.user = null;
         this.persist(STORAGE_KEYS.session, null);
         location.reload();
@@ -83,16 +133,16 @@
         const now = new Date();
         this.log.push({
             dt: now.toLocaleDateString(), tm: now.toLocaleTimeString(),
-            usr: this.user ? this.user.name : 'РЎРёСЃС‚РµРјР°', act, inf,
+            usr: this.user ? this.user.name : 'Система', act, inf,
             ts: now.getTime(),
             fs: `${now.toLocaleString()} ${this.user?.name} ${act} ${inf}`.toLowerCase()
         });
         if (this.log.length > 3000) this.log = this.log.slice(-3000);
-        localStorage.setItem(STORAGE_KEYS.log, JSON.stringify(this.log));
+        this.persist(STORAGE_KEYS.log, this.log);
     },
 
     save() {
-        localStorage.setItem(STORAGE_KEYS.db, JSON.stringify(this.db));
+        this.persist(STORAGE_KEYS.db, this.db);
         ui.render();
     },
 
@@ -111,7 +161,7 @@
     registerEntry() {
         const truck = document.getElementById('reg-truck').value.trim();
         const driver = document.getElementById('reg-driver').value.trim();
-        if (!truck || !driver) { ui.toast('РЈРєР°Р¶РёС‚Рµ РўРЎ Рё РІРѕРґРёС‚РµР»СЏ', 'err'); return; }
+        if (!truck || !driver) { ui.toast('Укажите ТС и водителя', 'err'); return; }
         const entry = {
             id: Date.now(), num: this.db.length + 1, truck, driver,
             status: STATUS.IN, t_in: Date.now(),
@@ -119,9 +169,9 @@
             p_data: null, crane: null, craneStart: null, craneEnd: null, idle: 0
         };
         this.db.push(entry);
-        this.logAction('Р РµРіРёСЃС‚СЂР°С†РёСЏ', `РўР°Р»РѕРЅ в„–${entry.num} вЂ” ${truck} / ${driver}`);
+        this.logAction('Регистрация', `Талон №${entry.num} — ${truck} / ${driver}`);
         this.save(); ui.setPage('active');
-        ui.toast(`РўР°Р»РѕРЅ в„–${entry.num} Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ`, 'ok');
+        ui.toast(`Талон №${entry.num} зарегистрирован`, 'ok');
     },
 
     updateStep(id, field, nextStatus) {
@@ -132,7 +182,7 @@
         if (field === 't_e_in' && !this.can('admin', 'eng')) return;
         i[field] = Date.now();
         if (nextStatus) i.status = nextStatus;
-        this.logAction('РЎС‚Р°С‚СѓСЃ', `РўР°Р»РѕРЅ в„–${i.num} вЂ” ${i.status}`);
+        this.logAction('Статус', `Талон №${i.num} — ${i.status}`);
         this.save();
     },
 
@@ -144,7 +194,7 @@
             i.craneStart = Date.now();
             i.craneEnd = null; i.idle = 0;
             i.status = STATUS.LOADING;
-            this.logAction('РџРѕРіСЂСѓР·РєР° РЅР°С‡Р°С‚Р°', `РўР°Р»РѕРЅ в„–${i.num} вЂ” ${i.crane}`);
+            this.logAction('Погрузка начата', `Талон №${i.num} — ${i.crane}`);
             this.save(); ui.closeModal();
         }
     },
@@ -158,8 +208,8 @@
             i.status = STATUS.LOADED;
             const over = Math.max(0, mins - CRANE_LIMIT_MIN);
             i.idle = over;
-            this.logAction(over > 0 ? 'РџР РћРЎРўРћР™ Р·Р°С„РёРєСЃРёСЂРѕРІР°РЅ' : 'РџРѕРіСЂСѓР·РєР° Р·Р°РІРµСЂС€РµРЅР°',
-                `РўР°Р»РѕРЅ в„–${i.num} вЂ” ${i.crane}, ${mins} РјРёРЅ.` + (over > 0 ? `, РїСЂРѕСЃС‚РѕР№ ${over} РјРёРЅ.` : ''));
+            this.logAction(over > 0 ? 'ПРОСТОЙ зафиксирован' : 'Погрузка завершена',
+                `Талон №${i.num} — ${i.crane}, ${mins} мин.` + (over > 0 ? `, простой ${over} мин.` : ''));
             this.save(); ui.closeModal();
         }
     },
@@ -181,32 +231,34 @@
         };
         i.t_e_out = Date.now();
         i.status = STATUS.READY;
-        this.logAction('РњР°СЂС€СЂСѓС‚РёР·Р°С†РёСЏ', `РўР°Р»РѕРЅ в„–${i.num} РіРѕС‚РѕРІ`);
+        this.logAction('Маршрутизация', `Талон №${i.num} готов`);
         this.save(); ui.closeModal(); ui.printPermit(i);
     },
 
     deleteRecord(id) {
         if (!this.can('admin')) return;
-        if (confirm('РЈРґР°Р»РёС‚СЊ Р·Р°РїРёСЃСЊ в„–' + (this.db.find(x => x.id === id)?.num || id) + '?')) {
-            const idx = this.db.findIndex(x => x.id === id);
-            if (idx >= 0) {
-                this.logAction('РЈРґР°Р»РµРЅРёРµ', `РЈРґР°Р»С‘РЅ С‚Р°Р»РѕРЅ в„–${this.db[idx].num}`);
-                this.db.splice(idx, 1); this.save();
-            }
+        const rec = this.db.find(x => x.id === id);
+        if (!rec) return;
+        if (confirm('Удалить запись №' + rec.num + '?')) {
+            this.logAction('Удаление', `Удалён талон №${rec.num}`);
+            this.db = this.db.filter(x => x.id !== id);
+            this.save();
         }
     },
 
-    /* ================= РђР”РњРРќРРЎРўР РР РћР’РђРќРР• РџРћР›Р¬Р—РћР’РђРўР•Р›Р•Р™ ================= */
+    /* ================= ПОЛЬЗОВАТЕЛИ ================= */
     addUser() {
         if (!this.can('admin')) return;
         const name = document.getElementById('u-name').value.trim();
         const login = document.getElementById('u-login').value.trim();
         const tab = document.getElementById('u-tab').value.trim();
         const role = document.getElementById('u-role').value;
-        if (!name || !tab) { ui.toast('Р—Р°РїРѕР»РЅРёС‚Рµ Р¤РРћ Рё С‚Р°Р±РµР»СЊРЅС‹Р№ РЅРѕРјРµСЂ', 'err'); return; }
-        if (!/^\d{1,10}$/.test(tab)) { ui.toast('РўР°Р±РµР»СЊРЅС‹Р№ РЅРѕРјРµСЂ вЂ” С‚РѕР»СЊРєРѕ С†РёС„СЂС‹', 'err'); return; }
-        if (this.users.some(x => x.login.toLowerCase() === (login || name).toLowerCase())) {
-            ui.toast('РўР°РєРѕР№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚', 'err'); return;
+        if (!name || !tab) { ui.toast('Заполните ФИО и табельный номер', 'err'); return; }
+        const words = name.split(/\s+/).filter(w => w.length > 0);
+        if (words.length < 3 || /\./.test(name)) { ui.toast('Укажите полное ФИО без сокращений', 'err'); return; }
+        if (!/^\d{1,10}$/.test(tab)) { ui.toast('Табельный номер — только цифры', 'err'); return; }
+        if (this.users.some(x => x.name.toLowerCase() === name.toLowerCase())) {
+            ui.toast('Пользователь с таким ФИО уже существует', 'err'); return;
         }
         this.users.push({
             id: 'u' + Date.now(),
@@ -217,8 +269,8 @@
             role
         });
         this.persist(STORAGE_KEYS.users, this.users);
-        this.logAction('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃРѕР·РґР°РЅ', `${name} (${ROLES[role]})`);
-        ui.render(); ui.toast('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РґРѕР±Р°РІР»РµРЅ', 'ok');
+        this.logAction('Пользователь создан', `${name} (${ROLES[role]})`);
+        ui.render(); ui.toast('Пользователь добавлен', 'ok');
     },
 
     updateUserRole(id, role) {
@@ -227,7 +279,7 @@
         if (!u || !ROLES[role]) return;
         u.role = role;
         this.persist(STORAGE_KEYS.users, this.users);
-        this.logAction('Р РѕР»СЊ РёР·РјРµРЅРµРЅР°', `${u.name} в†’ ${ROLES[role]}`);
+        this.logAction('Роль изменена', `${u.name} → ${ROLES[role]}`);
         ui.render();
     },
 
@@ -235,77 +287,110 @@
         if (!this.can('admin')) return;
         const u = this.users.find(x => x.id === id);
         if (!u) return;
-        const np = prompt(`РќРѕРІС‹Р№ С‚Р°Р±РµР»СЊРЅС‹Р№ РЅРѕРјРµСЂ (РїР°СЂРѕР»СЊ) РґР»СЏ В«${u.name}В»:`, u.tab || '');
+        const np = prompt(`Новый табельный номер (пароль) для «${u.name}»:`, u.tab || '');
         if (np === null || np === '') return;
-        if (!/^\d{1,10}$/.test(np)) { ui.toast('РўР°Р±РµР»СЊРЅС‹Р№ РЅРѕРјРµСЂ вЂ” С‚РѕР»СЊРєРѕ С†РёС„СЂС‹', 'err'); return; }
+        if (!/^\d{1,10}$/.test(np)) { ui.toast('Табельный номер — только цифры', 'err'); return; }
         u.tab = np; u.pass = this.hash(np);
         this.persist(STORAGE_KEYS.users, this.users);
-        this.logAction('РџР°СЂРѕР»СЊ СЃР±СЂРѕС€РµРЅ', u.name);
-        ui.render(); ui.toast('РџР°СЂРѕР»СЊ РѕР±РЅРѕРІР»С‘РЅ', 'ok');
+        this.logAction('Пароль сброшен', u.name);
+        ui.render(); ui.toast('Пароль обновлён', 'ok');
     },
 
     deleteUser(id) {
         if (!this.can('admin')) return;
         const u = this.users.find(x => x.id === id);
         if (!u) return;
-        if (u.id === this.user.id) { ui.toast('РќРµР»СЊР·СЏ СѓРґР°Р»РёС‚СЊ СЃРІРѕР№ Р°РєРєР°СѓРЅС‚', 'err'); return; }
+        if (u.id === this.user.id) { ui.toast('Нельзя удалить свой аккаунт', 'err'); return; }
         if (u.role === 'admin' && this.users.filter(x => x.role === 'admin').length <= 1) {
-            ui.toast('РќРµР»СЊР·СЏ СѓРґР°Р»РёС‚СЊ РїРѕСЃР»РµРґРЅРµРіРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°', 'err'); return;
+            ui.toast('Нельзя удалить последнего администратора', 'err'); return;
         }
-        if (confirm(`РЈРґР°Р»РёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ В«${u.name}В»?`)) {
+        if (confirm(`Удалить пользователя «${u.name}»?`)) {
             this.users = this.users.filter(x => x.id !== id);
             this.persist(STORAGE_KEYS.users, this.users);
-            this.logAction('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СѓРґР°Р»С‘РЅ', u.name);
-            ui.render(); ui.toast('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СѓРґР°Р»С‘РЅ', 'ok');
+            this.logAction('Пользователь удалён', u.name);
+            ui.render(); ui.toast('Пользователь удалён', 'ok');
         }
     },
 
-    /* ================= РЎРџР РђР’РћР§РќРРљР ================= */
+    /* ================= СПРАВОЧНИКИ ================= */
     addTruck() {
         if (!this.can('admin')) return;
         const plate = document.getElementById('fleet-plate').value.trim().toUpperCase();
         if (!plate) return;
-        if (this.trucks.includes(plate)) { ui.toast('РўР°РєРѕРµ РўРЎ СѓР¶Рµ РµСЃС‚СЊ', 'err'); return; }
+        if (this.trucks.includes(plate)) { ui.toast('Такое ТС уже есть', 'err'); return; }
         this.trucks.push(plate);
         this.persist(STORAGE_KEYS.trucks, this.trucks);
-        this.logAction('РЎРїСЂР°РІРѕС‡РЅРёРє РўРЎ', `Р”РѕР±Р°РІР»РµРЅРѕ: ${plate}`);
-        ui.render();
+        this.logAction('Справочник ТС', `Добавлено: ${plate}`);
+        ui.renderFleetLocal();
     },
     removeTruck(i) {
         if (!this.can('admin')) return;
-        if (confirm(`РЈРґР°Р»РёС‚СЊ РўРЎ В«${this.trucks[i]}В»?`)) {
-            this.logAction('РЎРїСЂР°РІРѕС‡РЅРёРє РўРЎ', `РЈРґР°Р»РµРЅРѕ: ${this.trucks[i]}`);
+        if (confirm(`Удалить ТС «${this.trucks[i]}»?`)) {
+            this.logAction('Справочник ТС', `Удалено: ${this.trucks[i]}`);
             this.trucks.splice(i, 1);
             this.persist(STORAGE_KEYS.trucks, this.trucks);
-            ui.render();
+            ui.renderFleetLocal();
         }
     },
     addDriver() {
         if (!this.can('admin')) return;
         const name = document.getElementById('fleet-driver').value.trim();
-        if (!name || name.indexOf(' ') < 0) { ui.toast('Р’РІРµРґРёС‚Рµ РїРѕР»РЅРѕРµ Р¤РРћ (Р¤Р°РјРёР»РёСЏ РРјСЏ РћС‚С‡РµСЃС‚РІРѕ)', 'err'); return; }
-        if (this.drivers.includes(name)) { ui.toast('РўР°РєРѕР№ РІРѕРґРёС‚РµР»СЊ СѓР¶Рµ РµСЃС‚СЊ', 'err'); return; }
+        if (!name || name.split(/\s+/).filter(Boolean).length < 3 || /\./.test(name)) {
+            ui.toast('Введите полное ФИО без сокращений', 'err'); return;
+        }
+        if (this.drivers.includes(name)) { ui.toast('Такой водитель уже есть', 'err'); return; }
         this.drivers.push(name);
         this.persist(STORAGE_KEYS.drivers, this.drivers);
-        this.logAction('РЎРїСЂР°РІРѕС‡РЅРёРє РІРѕРґРёС‚РµР»РµР№', `Р”РѕР±Р°РІР»РµРЅ: ${name}`);
-        ui.render();
+        this.logAction('Справочник водителей', `Добавлен: ${name}`);
+        ui.renderFleetLocal();
     },
     removeDriver(i) {
         if (!this.can('admin')) return;
-        if (confirm(`РЈРґР°Р»РёС‚СЊ РІРѕРґРёС‚РµР»СЏ В«${this.drivers[i]}В»?`)) {
-            this.logAction('РЎРїСЂР°РІРѕС‡РЅРёРє РІРѕРґРёС‚РµР»РµР№', `РЈРґР°Р»С‘РЅ: ${this.drivers[i]}`);
+        if (confirm(`Удалить водителя «${this.drivers[i]}»?`)) {
+            this.logAction('Справочник водителей', `Удалён: ${this.drivers[i]}`);
             this.drivers.splice(i, 1);
             this.persist(STORAGE_KEYS.drivers, this.drivers);
-            ui.render();
+            ui.renderFleetLocal();
         }
     },
 
-    /* ================= Р Р•Р—Р•Р Р’РќРђРЇ РљРћРџРРЇ ================= */
+    /* ================= ПОДДЕРЖКА ================= */
+    saveMsgs() { this.persist('sng_ctb_msgs', this.msgs); },
+
+    sendSupport(text) {
+        if (!this.user || !text.trim()) return;
+        this.msgs.push({
+            id: Date.now(),
+            from: this.user.id,
+            fromName: this.user.name,
+            role: this.user.role,
+            text: text.trim(),
+            date: Date.now(),
+            answer: '',
+            answeredBy: ''
+        });
+        this.saveMsgs();
+        this.logAction('Поддержка', `Обращение: ${this.user.name}`);
+        ui.renderMsgs();
+    },
+
+    replySupport(id, text) {
+        if (!this.can('admin') || !text.trim()) return;
+        const m = this.msgs.find(x => x.id === id);
+        if (!m) return;
+        m.answer = text.trim();
+        m.answeredBy = this.user.name;
+        this.saveMsgs();
+        this.logAction('Поддержка', `Ответ для ${m.fromName}`);
+        ui.renderMsgs();
+    },
+
+    /* ================= РЕЗЕРВНАЯ КОПИЯ ================= */
     backup() {
         const data = {
             exported: new Date().toISOString(),
             db: this.db, log: this.log, users: this.users,
-            trucks: this.trucks, drivers: this.drivers
+            trucks: this.trucks, drivers: this.drivers, msgs: this.msgs
         };
         const blob = new Blob(['\ufeff' + JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
         const a = document.createElement('a');
@@ -313,7 +398,7 @@
         a.download = 'ctb_backup_' + new Date().toISOString().slice(0, 10) + '.json';
         a.click();
         URL.revokeObjectURL(a.href);
-        this.logAction('Р РµР·РµСЂРІРЅР°СЏ РєРѕРїРёСЏ', 'РЎРѕР·РґР°РЅР° Рё СЃРєР°С‡Р°РЅР°');
+        this.logAction('Резервная копия', 'Создана и скачана');
     },
 
     restoreFromFile(input) {
@@ -329,24 +414,26 @@
                 this.users = d.users && d.users.length ? d.users : this.users;
                 this.trucks = d.trucks || this.trucks;
                 this.drivers = d.drivers || this.drivers;
+                this.msgs = d.msgs || [];
                 this.persist(STORAGE_KEYS.db, this.db);
                 this.persist(STORAGE_KEYS.log, this.log);
                 this.persist(STORAGE_KEYS.users, this.users);
                 this.persist(STORAGE_KEYS.trucks, this.trucks);
                 this.persist(STORAGE_KEYS.drivers, this.drivers);
-                this.logAction('Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ', 'Р‘Р°Р·Р° РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅР° РёР· С„Р°Р№Р»Р°');
+                this.persist('sng_ctb_msgs', this.msgs);
+                this.logAction('Восстановление', 'База восстановлена из файла');
                 input.value = '';
                 location.reload();
             } catch (e) {
-                ui.toast('РћС€РёР±РєР°: С„Р°Р№Р» РїРѕРІСЂРµР¶РґС‘РЅ РёР»Рё РЅРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚', 'err');
+                ui.toast('Ошибка: файл повреждён или неверный формат', 'err');
             }
         };
         rd.readAsText(f);
     },
 
-    /* ================= Р­РљРЎРџРћР Рў CSV ================= */
+    /* ================= ЭКСПОРТ CSV ================= */
     exportCSV(rows, filename) {
-        if (!rows || !rows.length) { ui.toast('РќРµС‚ РґР°РЅРЅС‹С… РґР»СЏ РІС‹РіСЂСѓР·РєРё', 'err'); return; }
+        if (!rows || !rows.length) { ui.toast('Нет данных для выгрузки', 'err'); return; }
         const headers = Object.keys(rows[0]);
         const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const csv = [headers.join(';'), ...rows.map(r => headers.map(h => esc(r[h])).join(';'))].join('\r\n');
