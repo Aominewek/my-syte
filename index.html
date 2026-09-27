@@ -19,22 +19,21 @@
     <!-- ===== ЭКРАН АВТОРИЗАЦИИ ===== -->
     <div id="auth-screen">
         <div class="auth-card">
-            <div class="auth-logo">
+            <div class="auth-brand">
                 <img src="assets/logo.svg" alt="ЦТБ">
-                <span class="logo-text">СУРГУТНЕФТЕГАЗ</span>
+                <h1>ЦТБ Сургутнефтегаз</h1>
+                <p>Контроль транспорта</p>
             </div>
-            <h3>Контроль транспорта ЦТБ</h3>
-            <input type="text" id="login" placeholder="Логин" autocomplete="username">
-            <input type="password" id="pass" placeholder="Пароль" autocomplete="current-password">
+            <div class="form-group">
+                <label for="login">ФИО сотрудника</label>
+                <input type="text" id="login" placeholder="Фамилия Имя Отчество" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="pass">Табельный номер</label>
+                <input type="password" id="pass" placeholder="Табельный номер" autocomplete="current-password">
+            </div>
+            <div id="auth-error" class="auth-error"></div>
             <button class="btn btn-primary btn-block" onclick="app.login()">ВОЙТИ</button>
-            <div class="auth-hint">
-                <b>Демо-доступ:</b><br>
-                admin — AndrianovAV / 123<br>
-                КПП — kpp / 123<br>
-                Склад — sklad / 123<br>
-                Инженер — eng / 123<br>
-                Руководитель — boss / 123
-            </div>
         </div>
     </div>
 
@@ -49,7 +48,7 @@
             <nav id="menu-container"></nav>
             <div class="sidebar-footer">
                 <div id="user-info"></div>
-                <button class="btn btn-danger btn-block btn-sm" onclick="location.reload()">ВЫХОД</button>
+                <button class="btn btn-danger btn-block btn-sm" onclick="app.logout()">ВЫХОД</button>
             </div>
         </aside>
         <main class="content-area">
@@ -57,20 +56,20 @@
                 <h2 id="page-title">Раздел</h2>
                 <div class="ph-actions" id="page-actions"></div>
             </header>
-            <div id="search-wrapper"><input type="text" id="global-search" class="search-input" placeholder="Поиск по номеру, водителю, талону..." oninput="app.handleSearch(this.value)"></div>
+            <div id="search-wrapper"><input type="text" id="global-search" class="search-input" placeholder="Поиск: номер, водитель, талон..." oninput="app.handleSearch(this.value)"></div>
             <div id="data-container"></div>
         </main>
     </div>
 
-    <!-- ===== МОДАЛКА МАРШРУТИЗАЦИИ ===== -->
+    <!-- ===== МОДАЛКА ТАЛОНА-РАЗРЕШЕНИЯ ===== -->
     <div id="modal-permit" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <span>Заполнение талона-разрешения</span>
+                <span>Талон-разрешение</span>
                 <button class="close-btn" onclick="ui.closeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="grid2">
                     <div class="form-group"><label>Заказчик</label><input type="text" id="p-customer"></div>
                     <div class="form-group"><label>Инженер ООГ</label><input type="text" id="p-eng-name"></div>
                     <div class="form-group"><label>№ крана</label><input type="text" id="p-crane"></div>
@@ -78,14 +77,10 @@
                     <div class="form-group"><label>Типоразмер труб</label><input type="text" id="p-pipe"></div>
                     <div class="form-group"><label>Количество</label><input type="text" id="p-qty"></div>
                 </div>
-                <div class="form-group" style="margin-top:10px;">
-                    <label>Погрузка:</label>
-                    <label style="display:inline-flex; align-items:center; gap:6px; font-weight:500;">
-                        <input type="checkbox" id="p-type-1" style="width:auto;"> Труба
-                    </label>
-                    <label style="display:inline-flex; align-items:center; gap:6px; font-weight:500; margin-left:20px;">
-                        <input type="checkbox" id="p-type-2" style="width:auto;"> Патрубки
-                    </label>
+                <div class="form-group">
+                    <label>Вид погрузки</label>
+                    <label class="inline-check"><input type="checkbox" id="p-type-1"> Труба</label>
+                    <label class="inline-check"><input type="checkbox" id="p-type-2"> Патрубки</label>
                 </div>
             </div>
             <div class="modal-footer">
@@ -95,20 +90,20 @@
         </div>
     </div>
 
-    <!-- ===== МОДАЛКА ЗАГРУЗКИ ПОД КРАНОМ ===== -->
+    <!-- ===== МОДАЛКА ПОГРУЗКИ ПОД КРАНОМ ===== -->
     <div id="modal-crane" class="modal-overlay">
-        <div class="modal-content" style="width: 440px;">
+        <div class="modal-content modal-sm">
             <div class="modal-header">
                 <span>Погрузка под краном</span>
                 <button class="close-btn" onclick="ui.closeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="crane-info" style="font-size:14px; color:var(--text-muted); margin-top:0;"></p>
+                <p id="crane-info" class="crane-info"></p>
                 <div class="form-group">
-                    <label>Выберите кран</label>
+                    <label>Кран</label>
                     <select id="crane-select"></select>
                 </div>
-                <p id="crane-limit-hint" style="font-size:12.5px; color:var(--text-muted);"></p>
+                <p id="crane-limit-hint" class="crane-hint"></p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-success" id="crane-start-btn" onclick="app.startCrane(app.editingId)">НАЧАТЬ ПОГРУЗКУ</button>
