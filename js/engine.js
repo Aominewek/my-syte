@@ -407,7 +407,12 @@
         if (!this.can('admin', 'eng')) return;
         const i = this.db.find(x => x.id === this.editingId);
         if (!i) return;
-        if (!i.t_e_in) { ui.toast('Сначала зафиксируйте приезд водителя', 'err'); return; }
+
+        if (!i.t_e_in) {
+            i.t_e_in = Date.now();
+            if (i.status === STATUS.IN) i.status = STATUS.ENG_IN;
+        }
+
         i.p_data = {
             cust: document.getElementById('p-customer').value.trim(),
             eng: document.getElementById('p-eng-name').value.trim(),
@@ -419,9 +424,12 @@
             type2: document.getElementById('p-type-2').checked,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-        i.status = STATUS.READY;
-        this.logAction('Талон выдан', `Талон №${i.num} — ${i.truck} / ${i.driver}`, 'entry', i.id);
-        this.save(); ui.closeModal(); ui.downloadPermit(i);
+
+        const early = [STATUS.IN, STATUS.ENG_IN, STATUS.READY, STATUS.TO_STORE];
+        if (early.includes(i.status)) i.status = STATUS.READY;
+
+        this.logAction('Талон напечатан', `Талон №${i.num} — ${i.truck} / ${i.driver}`, 'entry', i.id);
+        this.save(); ui.closeModal(); ui.printPermit(i);
     },
 
     deleteRecord(id) {

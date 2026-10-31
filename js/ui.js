@@ -350,7 +350,7 @@ const ui = {
         if (isEng && !i.t_e_in) {
             actions += `<button class="btn btn-primary btn-sm" onclick="app.updateStep(${i.id}, 't_e_in', '${STATUS.ENG_IN}')">ПРИЕЗД</button>`;
         }
-        if (isEng && i.t_e_in && !i.p_data) {
+        if (isEng && !i.t_out) {
             actions += `<button class="btn btn-accent btn-sm" onclick="ui.openModal(${i.id})">ТАЛОН</button>`;
         }
         if (isEng && i.p_data && !i.t_e_out) {
@@ -1097,97 +1097,51 @@ const ui = {
         this.closePopovers();
     },
 
-    downloadPermit(i) {
-        if (typeof XLSX === 'undefined') { this.toast('Модуль Excel не загружен', 'err'); return; }
+    printPermit(i) {
         const d = i.p_data || {};
-        const thin = { style: 'thin', color: { rgb: 'FF000000' } };
-        const box = { top: thin, bottom: thin, left: thin, right: thin };
-        const centre = { horizontal: 'center', vertical: 'center', wrapText: true };
-        const left = { horizontal: 'left', vertical: 'center', wrapText: true };
-        const stTitle = { font: { name: 'Arial', sz: 14, bold: true }, alignment: centre };
-        const stSub = { font: { name: 'Arial', sz: 10 }, alignment: centre };
-        const stLab = { font: { name: 'Arial', sz: 9, bold: true }, alignment: left, border: box };
-        const stVal = { font: { name: 'Arial', sz: 11 }, alignment: left, border: box };
-        const stBig = { font: { name: 'Arial', sz: 11, bold: true }, alignment: centre, border: box };
-
-        const ws = {};
-        const put = (addr, v, s) => { ws[addr] = { v: v == null ? '' : v, t: 's', s }; };
-        const merge = (r1, c1, r2, c2) => ({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-
         const dt = new Date(i.t_in);
         const p = n => String(n).padStart(2, '0');
         const dateStr = `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
-
-        put('A1', 'ТАЛОН-РАЗРЕШЕНИЕ', stTitle);
-        put('A2', 'ЦТБ «Сургутнефтегаз» · контроль транспорта', stSub);
-        put('A3', `Форма A 4027 · оформлен ${dateStr} в ${d.time || ''}`, stSub);
-
-        put('A5', '№ талона', stLab); put('B5', String(i.num), stBig);
-        put('C5', 'Дата', stLab); put('D5', dateStr, stVal);
-        put('E5', 'Время', stLab); put('F5', d.time || '', stVal);
-
-        put('A6', 'Гос. номер', stLab); put('B6', i.truck || '', stBig);
-        put('C6', 'Марка ТС', stLab); put('D6', i.brand || '', stVal);
-        put('E6', 'Заказчик', stLab); put('F6', d.cust || '', stVal);
-
-        put('A7', 'Водитель', stLab); put('B7', i.driver || '', stVal);
-        put('A8', 'Организация', stLab); put('B8', i.org || '', stVal);
-
-        put('A9', 'Инженер ООГ', stLab); put('B9', d.eng || '', stVal);
-        put('D9', 'Подпись', stLab);
-
-        put('A10', '№ крана', stLab); put('B10', d.crane || '', stVal);
-        put('C10', '№ стеллажа', stLab); put('D10', d.shelf || '', stVal);
-        put('E10', 'Количество', stLab); put('F10', d.qty || '', stVal);
-
-        put('A11', 'Типоразмер труб', stLab); put('B11', d.pipe || '', stVal);
-        put('A12', 'Вид погрузки', stLab);
-        put('B12', `${d.type1 ? '[X]' : '[ ]'} труба      ${d.type2 ? '[X]' : '[ ]'} патрубки`, stVal);
-
-        put('A14', 'ВОДИТЕЛЬ, ВНИМАНИЕ!', { font: { name: 'Arial', sz: 11, bold: true }, alignment: centre });
-        put('A15', 'После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.', { font: { name: 'Arial', sz: 10 }, alignment: centre, border: box });
-
-        put('A17', 'Кладовщик', stLab); put('D17', 'Подпись', stLab);
-
-        ws['!merges'] = [
-            merge(0, 0, 0, 5),
-            merge(1, 0, 1, 5),
-            merge(2, 0, 2, 5),
-            merge(6, 1, 6, 5),
-            merge(7, 1, 7, 5),
-            merge(8, 1, 8, 2),
-            merge(8, 4, 8, 5),
-            merge(10, 1, 10, 5),
-            merge(11, 1, 11, 5),
-            merge(13, 0, 13, 5),
-            merge(14, 0, 14, 5),
-            merge(16, 1, 16, 2),
-            merge(16, 4, 16, 5)
-        ];
-        ws['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 16 }];
-        ws['!rows'] = [{ hpt: 26 }, { hpt: 16 }, { hpt: 16 }, { hpt: 8 }, { hpt: 20 }];
-        ws['!ref'] = 'A1:F17';
-        ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
-
-        const spec = {};
-        const head = ['№', 'Краткое наименование труб', 'Кол-во шт.', 'Метры', 'Доп. информация'];
-        head.forEach((h, c) => {
-            spec[XLSX.utils.encode_cell({ r: 0, c })] = { v: h, t: 's', s: stLab };
-        });
-        for (let r = 1; r <= 18; r++) {
-            spec[XLSX.utils.encode_cell({ r, c: 0 })] = { v: r, t: 'n', s: stBig };
-            for (let c = 1; c < 5; c++) {
-                spec[XLSX.utils.encode_cell({ r, c })] = { v: '', t: 's', s: stVal };
-            }
-        }
-        spec['!ref'] = 'A1:E19';
-        spec['!cols'] = [{ wch: 6 }, { wch: 40 }, { wch: 12 }, { wch: 12 }, { wch: 30 }];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Талон');
-        XLSX.utils.book_append_sheet(wb, spec, 'Спецификация');
-        XLSX.writeFile(wb, `Талон_${i.num}_${String(i.truck).replace(/[^0-9А-Яа-яA-Za-z]/g, '')}.xlsx`);
-        this.toast('Талон скачан в Excel', 'ok');
+        const w = window.open('', '', 'width=900,height=1000');
+        if (!w) { this.toast('Разрешите всплывающие окна, чтобы напечатать талон', 'err'); return; }
+        w.document.write(`
+<html><head><title>Талон №${i.num}</title><style>
+body{font-family:Arial,sans-serif;padding:20px;color:#000}
+.page{width:100%;min-height:140mm;border:1px solid #000;padding:15px;position:relative;box-sizing:border-box;page-break-after:always;margin-bottom:20px}
+.header{text-align:center;margin-bottom:15px}
+.line{border-bottom:1px solid #000;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.footer-box{border:2px dashed #000;padding:10px;text-align:center;margin-top:20px}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #000;padding:4px;text-align:center;font-size:11px}
+.sign{width:120px;border-bottom:1px solid #000;display:inline-block}
+@media print{body{padding:0}.page{border:none;page-break-after:always;margin:0}}
+</style></head><body>
+<div class="page">
+<div style="display:flex;justify-content:space-between"><span>Время выдачи талона: <b>${this.esc(d.time || '')}</b></span><span>A 4027</span></div>
+<div class="header"><h1 style="margin:8px 0">Талон-разрешение</h1><h3 style="margin:4px 0">№ ${i.num} от ${dateStr}</h3></div>
+<div class="line"><span>№ а/м: <b>${this.esc(i.truck)}</b></span><span>Марка: <b>${this.esc(i.brand)}</b></span></div>
+<div class="line"><span>Водитель: <b>${this.esc(i.driver)}</b></span></div>
+<div class="line"><span>Организация: <b>${this.esc(i.org)}</b></span></div>
+<div class="line"><span>Заказчик: <b>${this.esc(d.cust || '')}</b></span></div>
+<div class="line"><span>Инженер ООГ: <b>${this.esc(d.eng || '')}</b></span><span>Подпись: <span class="sign"></span></span></div>
+<div class="line"><span>№ крана: <b>${this.esc(d.crane || '')}</b></span><span>№ стеллажа: <b>${this.esc(d.shelf || '')}</b></span></div>
+<div class="line"><span>Типоразмер труб: <b>${this.esc(d.pipe || '')}</b></span></div>
+<div class="line"><span>Количество: <b>${this.esc(d.qty || '')}</b></span></div>
+<div class="line"><span>Заведующий складом, кладовщик:</span><span>Подпись: <span class="sign"></span></span></div>
+<p>Погрузка: [${d.type1 ? '<b>X</b>' : ' '}] труба [${d.type2 ? '<b>X</b>' : ' '}] патрубки</p>
+<div class="footer-box"><h2 style="margin:0">ВОДИТЕЛЬ ВНИМАНИЕ</h2>
+<p style="margin:5px">После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.</p></div>
+</div>
+<div class="page">
+<h3 style="text-align:center">Спецификация труб</h3>
+<table><thead><tr><th>№</th><th>Краткое наименование труб</th><th>Кол-во шт.</th><th>Метры</th><th>Доп. информация</th></tr></thead>
+<tbody>${Array(18).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('')}</tbody></table>
+<p style="margin-top:15px;">Кладовщик: ___________________________ (подпись)</p>
+</div>
+</body></html>`);
+        w.document.close();
+        w.focus();
+        setTimeout(() => { try { w.print(); } catch (e) {} }, 400);
     },
 
     /* ================= ЭКСПОРТ ================= */
