@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctb-cache-v4';
+const CACHE_NAME = 'ctb-cache-v5';
 const APP_SHELL = [
     'index.html',
     'manifest.webmanifest',

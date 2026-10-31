@@ -1102,46 +1102,89 @@ const ui = {
         const dt = new Date(i.t_in);
         const p = n => String(n).padStart(2, '0');
         const dateStr = `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
-        const w = window.open('', '', 'width=900,height=1000');
+        const w = window.open('', '', 'width=1000,height=1000');
         if (!w) { this.toast('Разрешите всплывающие окна, чтобы напечатать талон', 'err'); return; }
+        const emptyRows = Array(18).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('');
         w.document.write(`
-<html><head><title>Талон №${i.num}</title><style>
-body{font-family:Arial,sans-serif;padding:20px;color:#000}
-.page{width:100%;min-height:140mm;border:1px solid #000;padding:15px;position:relative;box-sizing:border-box;page-break-after:always;margin-bottom:20px}
-.header{text-align:center;margin-bottom:15px}
-.line{border-bottom:1px solid #000;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;font-size:14px}
-.footer-box{border:2px dashed #000;padding:10px;text-align:center;margin-top:20px}
-table{width:100%;border-collapse:collapse}
-th,td{border:1px solid #000;padding:4px;text-align:center;font-size:11px}
-.sign{width:120px;border-bottom:1px solid #000;display:inline-block}
-@media print{body{padding:0}.page{border:none;page-break-after:always;margin:0}}
-</style></head><body>
-<div class="page">
-<div style="display:flex;justify-content:space-between"><span>Время выдачи талона: <b>${this.esc(d.time || '')}</b></span><span>A 4027</span></div>
-<div class="header"><h1 style="margin:8px 0">Талон-разрешение</h1><h3 style="margin:4px 0">№ ${i.num} от ${dateStr}</h3></div>
-<div class="line"><span>№ а/м: <b>${this.esc(i.truck)}</b></span><span>Марка: <b>${this.esc(i.brand)}</b></span></div>
-<div class="line"><span>Водитель: <b>${this.esc(i.driver)}</b></span></div>
-<div class="line"><span>Организация: <b>${this.esc(i.org)}</b></span></div>
-<div class="line"><span>Заказчик: <b>${this.esc(d.cust || '')}</b></span></div>
-<div class="line"><span>Инженер ООГ: <b>${this.esc(d.eng || '')}</b></span><span>Подпись: <span class="sign"></span></span></div>
-<div class="line"><span>№ крана: <b>${this.esc(d.crane || '')}</b></span><span>№ стеллажа: <b>${this.esc(d.shelf || '')}</b></span></div>
-<div class="line"><span>Типоразмер труб: <b>${this.esc(d.pipe || '')}</b></span></div>
-<div class="line"><span>Количество: <b>${this.esc(d.qty || '')}</b></span></div>
-<div class="line"><span>Заведующий складом, кладовщик:</span><span>Подпись: <span class="sign"></span></span></div>
-<p>Погрузка: [${d.type1 ? '<b>X</b>' : ' '}] труба [${d.type2 ? '<b>X</b>' : ' '}] патрубки</p>
-<div class="footer-box"><h2 style="margin:0">ВОДИТЕЛЬ ВНИМАНИЕ</h2>
-<p style="margin:5px">После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.</p></div>
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Талон №${i.num}</title>
+<style>
+  @page { size: A4 portrait; margin: 10mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; color: #000; background: #eef1f5; font-size: 12pt; }
+  .toolbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
+             padding: 10px 14px; background: #002d5a; color: #fff; font-size: 13px; }
+  .toolbar b { margin-right: auto; font-weight: 600; }
+  .toolbar .hint { font-size: 11px; opacity: .75; }
+  .toolbar button { font: inherit; padding: 8px 16px; border: 0; border-radius: 6px; cursor: pointer; }
+  .btn-print { background: #d4af37; color: #002d5a; font-weight: 700; }
+  .btn-close { background: rgba(255,255,255,.18); color: #fff; }
+  .page { width: 190mm; min-height: 277mm; margin: 10mm auto; padding: 8mm;
+          background: #fff; border: 1px solid #c9cfd8; page-break-after: always; }
+  .page:last-of-type { page-break-after: auto; }
+  .top-line { display: flex; justify-content: space-between; font-size: 11pt; margin-bottom: 6mm; }
+  .header { text-align: center; margin-bottom: 8mm; }
+  .header h1 { margin: 0 0 3mm; font-size: 18pt; letter-spacing: .5px; }
+  .header h3 { margin: 0; font-size: 12pt; font-weight: 400; }
+  .line { display: flex; justify-content: space-between; gap: 10mm; font-size: 11pt;
+          padding: 2.5mm 0; border-bottom: 1px solid #000; }
+  .line span { flex: 1; }
+  .sign { display: inline-block; width: 45mm; border-bottom: 1px solid #000; }
+  .footer-box { margin-top: 8mm; padding: 4mm; border: 2px dashed #000; text-align: center; }
+  .footer-box h2 { margin: 0 0 2mm; font-size: 13pt; }
+  .footer-box p { margin: 0; font-size: 11pt; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #000; padding: 2mm; font-size: 9.5pt; text-align: center; }
+  th { font-weight: 700; }
+  .spec-title { text-align: center; font-size: 14pt; margin: 0 0 6mm; }
+  .spec-note { margin-top: 8mm; font-size: 11pt; }
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none !important; }
+    .page { width: auto; min-height: 0; margin: 0; padding: 0; border: none; }
+  }
+</style></head>
+<body>
+<div class="toolbar">
+  <b>Талон №${i.num} · ${this.esc(i.truck)}</b>
+  <span class="hint">выберите принтер или «Сохранить как PDF»</span>
+  <button class="btn-print" onclick="window.print()">ПЕЧАТЬ</button>
+  <button class="btn-close" onclick="window.close()">ЗАКРЫТЬ</button>
 </div>
 <div class="page">
-<h3 style="text-align:center">Спецификация труб</h3>
-<table><thead><tr><th>№</th><th>Краткое наименование труб</th><th>Кол-во шт.</th><th>Метры</th><th>Доп. информация</th></tr></thead>
-<tbody>${Array(18).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('')}</tbody></table>
-<p style="margin-top:15px;">Кладовщик: ___________________________ (подпись)</p>
+  <div class="top-line"><span>Время выдачи талона: <b>${this.esc(d.time || '')}</b></span><span>A 4027</span></div>
+  <div class="header">
+    <h1>Талон-разрешение</h1>
+    <h3>№ ${i.num} от ${dateStr}</h3>
+  </div>
+  <div class="line"><span>№ а/м: <b>${this.esc(i.truck)}</b></span><span>Марка: <b>${this.esc(i.brand)}</b></span></div>
+  <div class="line"><span>Водитель: <b>${this.esc(i.driver)}</b></span></div>
+  <div class="line"><span>Организация: <b>${this.esc(i.org)}</b></span></div>
+  <div class="line"><span>Заказчик: <b>${this.esc(d.cust || '')}</b></span></div>
+  <div class="line"><span>Инженер ООГ: <b>${this.esc(d.eng || '')}</b></span><span>Подпись: <span class="sign"></span></span></div>
+  <div class="line"><span>№ крана: <b>${this.esc(d.crane || '')}</b></span><span>№ стеллажа: <b>${this.esc(d.shelf || '')}</b></span></div>
+  <div class="line"><span>Типоразмер труб: <b>${this.esc(d.pipe || '')}</b></span></div>
+  <div class="line"><span>Количество: <b>${this.esc(d.qty || '')}</b></span></div>
+  <div class="line"><span>Заведующий складом, кладовщик:</span><span>Подпись: <span class="sign"></span></span></div>
+  <p>Погрузка: [${d.type1 ? '<b>X</b>' : ' '}] труба [${d.type2 ? '<b>X</b>' : ' '}] патрубки</p>
+  <div class="footer-box">
+    <h2>ВОДИТЕЛЬ, ВНИМАНИЕ</h2>
+    <p>После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.</p>
+  </div>
 </div>
+<div class="page">
+  <h3 class="spec-title">Спецификация труб</h3>
+  <table>
+    <thead><tr><th>№</th><th>Краткое наименование труб</th><th>Кол-во шт.</th><th>Метры</th><th>Доп. информация</th></tr></thead>
+    <tbody>${emptyRows}</tbody>
+  </table>
+  <p class="spec-note">Кладовщик: ___________________________ (подпись)</p>
+</div>
+<script>window.addEventListener('load', function () { setTimeout(function () { try { window.print(); } catch (e) {} }, 400); });<\/script>
 </body></html>`);
         w.document.close();
         w.focus();
-        setTimeout(() => { try { w.print(); } catch (e) {} }, 400);
     },
 
     /* ================= ЭКСПОРТ ================= */
