@@ -55,6 +55,7 @@ const ui = {
             { id: 'log', n: 'Журнал событий', roles: ['admin'] }
         ];
         if (u.role === 'boss') menu = [{ id: 'boss', n: 'LIVE Мониторинг', roles: ['boss'] }];
+        this.menuItems = menu;
         document.getElementById('menu-container').innerHTML = menu
             .filter(m => m.roles.includes(u.role))
             .map(m => `<div class="menu-item" onclick="ui.setPage('${m.id}')" id="m-${m.id}">
@@ -63,12 +64,133 @@ const ui = {
         const tools = document.getElementById('top-tools');
         tools.style.display = (u.role === 'boss') ? 'none' : 'inline-flex';
         this.setPage(menu[0].id);
+        const params = new URLSearchParams(location.search);
+        const startPage = params.get('p');
+        if (startPage && menu.some(m => m.id === startPage && m.roles.includes(u.role))) {
+            this.setPage(startPage);
+        }
         setInterval(() => {
             if (document.hidden) return;
             if (['dash', 'active', 'boss', 'journal'].includes(app.currentPage)) this.render();
             this.refreshBell();
         }, 30000);
         this.dbStatus();
+        this.buildTabs();
+    },
+
+    /* ================= МОБИЛЬНАЯ НАВИГАЦИЯ ================= */
+    isMobile() { return window.matchMedia('(max-width: 768px)').matches; },
+
+    mobileTabs() {
+        const role = app.user.role;
+        const more = {
+            id: 'more', n: 'Ещё',
+            ico: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>'
+        };
+        if (role === 'boss') return [{ id: 'boss', n: 'LIVE', ico: this.ico.boss }, more];
+
+        const tabs = [{ id: 'dash', n: 'Сводка', ico: this.ico.dash }];
+        if (role === 'admin' || role === 'kpp') tabs.push({ id: 'reg', n: 'Въезд', ico: this.ico.reg });
+        tabs.push({ id: 'active', n: 'Территория', ico: this.ico.active });
+        tabs.push(more);
+        return tabs;
+    },
+
+    buildTabs() {
+        const nav = document.getElementById('mobile-tabbar');
+        if (!nav || !app.user) return;
+        nav.innerHTML = this.mobileTabs().map(t =>
+            `<button class="mtab" id="mt-${t.id}" onclick="ui.mobileGo('${t.id}')">${t.ico}<span>${t.n}</span></button>`
+        ).join('');
+        this.syncTabs(app.currentPage);
+    },
+
+    syncTabs(id) {
+        const nav = document.getElementById('mobile-tabbar');
+        if (!nav) return;
+        const ids = this.mobileTabs().map(t => t.id);
+        nav.querySelectorAll('.mtab').forEach(b => b.classList.remove('active'));
+        const el = document.getElementById('mt-' + (ids.includes(id) ? id : 'more'));
+        if (el) el.classList.add('active');
+    },
+
+    mobileGo(id) {
+        if (id === 'more') return this.openMore();
+        this.setPage(id);
+    },
+
+    openMore() {
+        const body = document.getElementById('sheet-more-body');
+        const overlay = document.getElementById('sheet-more');
+        if (!body || !overlay) return;
+        const u = app.user;
+        const tabs = this.mobileTabs().map(t => t.id);
+        const rest = (this.menuItems || []).filter(m => m.roles.includes(u.role) && !tabs.includes(m.id));
+
+        body.innerHTML = `
+            <div class="sheet-profile">
+                <b>${this.esc(u.name)}</b>
+                <small>${ROLES[u.role]}</small>
+            </div>
+            ${rest.map(m => `<div class="sheet-item" onclick="ui.sheetGo('${m.id}')">
+                ${this.ico[m.id] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>'}<span>${m.n}</span>
+            </div>`).join('')}
+            <div class="sheet-sep"></div>
+            <div class="sheet-item" onclick="ui.sheetSupport()">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.4-7"/><path d="M21 4v5h-5"/></svg>
+                <span>Поддержка и обращения</span>
+            </div>
+            ${this.installItem()}
+            <div class="sheet-sep"></div>
+            <div class="sheet-item danger" onclick="app.logout()">
+                <svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h9"/></svg>
+                <span>Выйти</span>
+            </div>`;
+        overlay.classList.add('open');
+        this.syncTabs('more');
+    },
+
+    sheetGo(id) {
+        this.closeSheet();
+        this.setPage(id);
+    },
+
+    sheetSupport() {
+        this.closeSheet();
+        this.openSupport();
+    },
+
+    closeSheet() {
+        const overlay = document.getElementById('sheet-more');
+        if (overlay) overlay.classList.remove('open');
+        if (app.user) this.syncTabs(app.currentPage);
+    },
+
+    isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    },
+
+    installItem() {
+        if (this.isStandalone()) return '';
+        return `<div class="sheet-item" onclick="ui.installApp()">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg>
+            <span>Установить приложение</span>
+        </div>`;
+    },
+
+    async installApp() {
+        this.closeSheet();
+        const ev = window.__ctbInstall;
+        if (ev) {
+            ev.prompt();
+            try { await ev.userChoice; } catch (e) {}
+            window.__ctbInstall = null;
+            return;
+        }
+        const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        this.toast(ios
+            ? 'В Safari: «Поделиться» → «На экран Домой»'
+            : 'Меню браузера → «Установить приложение»', 'ok');
     },
 
     dbStatus() {
@@ -92,6 +214,7 @@ const ui = {
         document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
         const mi = document.getElementById(`m-${id}`);
         if (mi) mi.classList.add('active');
+        this.syncTabs(id);
         document.getElementById('page-title').innerText = mi ? mi.innerText : 'Раздел';
         document.getElementById('search-wrapper').style.display = (['reg', 'dash', 'ana', 'users', 'fleet'].includes(id)) ? 'none' : 'block';
         const actions = document.getElementById('page-actions');
@@ -1317,7 +1440,7 @@ const ui = {
 app.boot();
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') ui.closeModal();
+    if (e.key === 'Escape') { ui.closeModal(); ui.closeSheet(); }
     if ((e.key === 'Enter') && document.getElementById('auth-screen').style.display !== 'none') {
         app.login();
     }
@@ -1330,4 +1453,13 @@ document.addEventListener('click', e => {
     if (!e.target.closest('.popover') && !e.target.closest('.tool-wrap')) {
         ui.closePopovers();
     }
+});
+
+/* установка приложения на телефон */
+window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    window.__ctbInstall = e;
+});
+window.addEventListener('appinstalled', () => {
+    window.__ctbInstall = null;
 });
