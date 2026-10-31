@@ -68,6 +68,22 @@ const ui = {
             if (['dash', 'active', 'boss'].includes(app.currentPage)) this.render();
             this.refreshBell();
         }, 30000);
+        this.dbStatus();
+    },
+
+    dbStatus() {
+        const el = document.getElementById('user-info');
+        if (!el || !app.user) return;
+        const old = el.querySelector('.db-status');
+        if (old) old.remove();
+        const sqlite = app.storageMode === 'sqlite';
+        let tail = '';
+        if (sqlite && typeof dbstore !== 'undefined' && dbstore.isSqlite) {
+            const s = dbstore.stats();
+            tail = ` · ${s.trucks} ТС · ${s.entries} талонов`;
+        }
+        el.insertAdjacentHTML('beforeend',
+            `<div class="db-status${sqlite ? '' : ' warn'}">БД: ${sqlite ? 'SQLite' : 'локальный режим'}${tail}</div>`);
     },
 
     setPage(id) {
@@ -196,16 +212,20 @@ const ui = {
     renderReg(cont) {
         const dt = new Date();
         const p = n => String(n).padStart(2, '0');
+        const free = app.freeTrucks().length;
+        const total = app.trucks.length;
+        const num = app.db.reduce((m, e) => Math.max(m, e.num || 0), 0) + 1;
         cont.innerHTML = `
         <div class="reg-card">
-            <div class="reg-head">Регистрация талона №${app.db.length + 1}</div>
+            <div class="reg-head">Регистрация талона №${num}</div>
             <div class="reg-body">
                 <div class="form-group">
-                    <label>Транспортное средство</label>
+                    <label>Гос. номер или марка ТС</label>
                     <div class="combo">
-                        <input id="reg-truck" placeholder="Введите номер или выберите из списка..." autocomplete="off" oninput="ui.comboFilter('truck')">
+                        <input id="reg-truck" placeholder="Введите номер, марку или ФИО водителя..." autocomplete="off" oninput="ui.comboFilter('truck')">
                         <div class="combo-list" id="combo-truck"></div>
                     </div>
+                    <p class="field-hint">Свободно ${free} из ${total}. Машины, которые уже на территории, в списке не показываются.</p>
                 </div>
                 <div class="form-group">
                     <label>Водитель (полное ФИО)</label>
@@ -213,6 +233,7 @@ const ui = {
                         <input id="reg-driver" placeholder="Введите ФИО или выберите из списка..." autocomplete="off" oninput="ui.comboFilter('driver')">
                         <div class="combo-list" id="combo-driver"></div>
                     </div>
+                    <p class="field-hint">Подставится автоматически по выбранной машине.</p>
                 </div>
                 <div class="reg-meta">
                     <span>Дата: ${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}</span>
@@ -229,24 +250,71 @@ const ui = {
         this.comboRefresh(type);
     },
 
-    comboRefresh(type) {
-        const input = document.getElementById(type === 'truck' ? 'reg-truck' : 'reg-driver');
-        if (!input) return;
-        const q = input.value.toLowerCase();
-        const list = type === 'truck' ? app.trucks : app.drivers;
-        const sel = type === 'truck' ? this.selTruck : this.selDriver;
-        const box = document.getElementById(type === 'truck' ? 'combo-truck' : 'combo-driver');
-        box.innerHTML = list
-            .filter(x => !q || x.toLowerCase().includes(q))
-            .map(x => `<div class="combo-item ${x === sel ? 'sel' : ''}" onclick="ui.comboPick('${type}', '${this.esc(x).replace(/'/g, '&#39;')}')" onmousedown="event.preventDefault()">${this.esc(x)}</div>`)
-            .join('') || `<div class="combo-empty">Ничего не найдено</div>`;
+    _matchTruck(t, q) {
+        if (!q) return true;
+        const d = app.driverForTruck(t);
+        return [t.plate, t.brand, t.owner, d ? d.fio : ''].join(' ').toLowerCase().includes(q);
     },
 
-    comboPick(type, val) {
-        const unesc = (() => { const d = document.createElement('div'); d.innerHTML = val; return d.textContent; })();
-        if (type === 'truck') { this.selTruck = unesc; document.getElementById('reg-truck').value = unesc; }
-        else { this.selDriver = unesc; document.getElementById('reg-driver').value = unesc; }
-        this.comboRefresh(type);
+    _matchDriver(d, q) {
+        if (!q) return true;
+        const t = app.trucks.find(x => x.driverId === d.id);
+        return [d.fio, t ? t.plate : '', t ? t.brand : ''].join(' ').toLowerCase().includes(q);
+    },
+
+    comboRefresh(type) {
+        const isTruck = type === 'truck';
+        const input = document.getElementById(isTruck ? 'reg-truck' : 'reg-driver');
+        const box = document.getElementById(isTruck ? 'combo-truck' : 'combo-driver');
+        if (!input || !box) return;
+        const q = input.value.toLowerCase().trim();
+
+        if (isTruck) {
+            const list = app.freeTrucks().filter(t => this._matchTruck(t, q)).slice(0, 60);
+            box.innerHTML = list.map(t => {
+                const d = app.driverForTruck(t);
+                return `<div class="combo-item" onclick="ui.comboPickTruck('${this.esc(t.id)}')" onmousedown="event.preventDefault()">
+                    <b>${this.esc(t.plate)}</b> <span class="combo-sub">${this.esc(t.brand)}</span>
+                    ${d ? `<small>${this.esc(d.fio)}</small>` : ''}
+                </div>`;
+            }).join('') || `<div class="combo-empty">Свободных ТС не найдено</div>`;
+        } else {
+            const list = app.drivers.filter(d => this._matchDriver(d, q)).slice(0, 60);
+            box.innerHTML = list.map(d => {
+                const t = app.trucks.find(x => x.driverId === d.id);
+                return `<div class="combo-item" onclick="ui.comboPickDriver('${this.esc(d.id)}')" onmousedown="event.preventDefault()">
+                    <b>${this.esc(d.fio)}</b>${t ? `<small>${this.esc(t.plate)} · ${this.esc(t.brand)}</small>` : ''}
+                </div>`;
+            }).join('') || `<div class="combo-empty">Ничего не найдено</div>`;
+        }
+    },
+
+    comboPickTruck(id) {
+        const t = app.truckById(id);
+        if (!t) return;
+        this.selTruckId = t.id;
+        document.getElementById('reg-truck').value = t.plate;
+        const d = app.driverForTruck(t);
+        if (d) {
+            this.selDriverId = d.id;
+            document.getElementById('reg-driver').value = d.fio;
+        }
+        this.comboRefresh('truck');
+        this.comboRefresh('driver');
+    },
+
+    comboPickDriver(id) {
+        const d = app.driverById(id);
+        if (!d) return;
+        this.selDriverId = d.id;
+        document.getElementById('reg-driver').value = d.fio;
+        const t = app.trucks.find(x => x.driverId === d.id);
+        if (t && (t.status || 'free') === 'free') {
+            this.selTruckId = t.id;
+            document.getElementById('reg-truck').value = t.plate;
+        }
+        this.comboRefresh('driver');
+        this.comboRefresh('truck');
     },
 
     /* ================= СПИСОК НА ТЕРРИТОРИИ ================= */
@@ -366,40 +434,56 @@ const ui = {
         this.drawPagination(list.length, cont);
     },
 
-    /* ================= СПРАВОЧНИК (раздельные области) ================= */
+    /* ================= СПРАВОЧНИК (таблица с фильтрами) ================= */
     renderFleet(cont) {
         const canEdit = app.user.role === 'admin';
+        const groups = [...new Set(app.trucks.map(t => t.group).filter(Boolean))].sort();
         cont.innerHTML = `
-        <div class="dash-grid one">
-            <div class="panel">
-                <div class="panel-head"><h3>Транспортные средства</h3><span class="tool-count" id="fleet-tcnt"></span></div>
-                <div class="panel-body">
-                    <input id="fleet-search-t" class="search-input" style="max-width:100%; margin-bottom:10px;" placeholder="Поиск по гос. номеру..." oninput="ui.renderFleetLocal()">
-                    <div class="table-container" style="border:none; box-shadow:none; margin:0;">
-                        <table style="min-width:500px;">
-                            <thead><tr><th>№</th><th>Гос. номер</th><th>Визитов</th>${canEdit ? '<th></th>' : ''}</tr></thead>
-                            <tbody id="fleet-tbody-t"></tbody>
-                        </table></div>
-                    ${canEdit ? `<div class="fleet-add">
-                        <input id="fleet-plate" placeholder="Гос. номер (напр. А123ВС 86)">
-                        <button class="btn btn-primary" onclick="app.addTruck()">ДОБАВИТЬ</button>
-                    </div>` : ''}
+        <div class="panel">
+            <div class="panel-head"><h3>Транспортные средства</h3><span class="tool-count" id="fleet-tcnt"></span></div>
+            <div class="panel-body">
+                <div class="fleet-filters">
+                    <input id="fleet-search-t" class="search-input" placeholder="Поиск: номер, марка, водитель..." oninput="ui.renderFleetLocal()">
+                    <select id="fleet-filter-group" onchange="ui.renderFleetLocal()">
+                        <option value="">Все группы</option>
+                        ${groups.map(g => `<option value="${this.esc(g)}">${this.esc(g)}</option>`).join('')}
+                    </select>
+                    <select id="fleet-filter-status" onchange="ui.renderFleetLocal()">
+                        <option value="">Все статусы</option>
+                        <option value="free">Свободно</option>
+                        <option value="on_site">На территории</option>
+                    </select>
                 </div>
+                ${canEdit ? `<div class="fleet-add">
+                    <input id="fleet-plate" placeholder="Гос. номер">
+                    <input id="fleet-brand" placeholder="Марка / модель">
+                    <select id="fleet-group">
+                        <option value="">Группа</option>
+                        ${groups.map(g => `<option value="${this.esc(g)}">${this.esc(g)}</option>`).join('')}
+                        <option value="ПРОЧЕЕ">ПРОЧЕЕ</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="app.addTruck()">ДОБАВИТЬ</button>
+                </div>` : ''}
+                <div class="table-container" style="margin:0;">
+                    <table style="min-width:900px;">
+                        <thead><tr><th>№</th><th>Гос. номер</th><th>Марка</th><th>Группа</th><th>Владелец</th><th>Водитель</th><th>Визитов</th><th>Статус</th>${canEdit ? '<th></th>' : ''}</tr></thead>
+                        <tbody id="fleet-tbody-t"></tbody>
+                    </table></div>
             </div>
-            <div class="panel">
-                <div class="panel-head"><h3>Водители</h3><span class="tool-count" id="fleet-dcnt"></span></div>
-                <div class="panel-body">
-                    <input id="fleet-search-d" class="search-input" style="max-width:100%; margin-bottom:10px;" placeholder="Поиск по ФИО..." oninput="ui.renderFleetLocal()">
-                    <div class="table-container" style="border:none; box-shadow:none; margin:0;">
-                        <table style="min-width:500px;">
-                            <thead><tr><th>№</th><th>ФИО</th>${canEdit ? '<th></th>' : ''}</tr></thead>
-                            <tbody id="fleet-tbody-d"></tbody>
-                        </table></div>
-                    ${canEdit ? `<div class="fleet-add">
-                        <input id="fleet-driver" placeholder="Полное ФИО водителя">
-                        <button class="btn btn-primary" onclick="app.addDriver()">ДОБАВИТЬ</button>
-                    </div>` : ''}
-                </div>
+        </div>
+        <div class="panel">
+            <div class="panel-head"><h3>Водители</h3><span class="tool-count" id="fleet-dcnt"></span></div>
+            <div class="panel-body">
+                <input id="fleet-search-d" class="search-input" style="max-width:100%; margin-bottom:10px;" placeholder="Поиск по ФИО или номеру ТС..." oninput="ui.renderFleetLocal()">
+                <div class="table-container" style="margin:0;">
+                    <table style="min-width:600px;">
+                        <thead><tr><th>№</th><th>ФИО</th><th>Транспортное средство</th>${canEdit ? '<th></th>' : ''}</tr></thead>
+                        <tbody id="fleet-tbody-d"></tbody>
+                    </table></div>
+                ${canEdit ? `<div class="fleet-add">
+                    <input id="fleet-driver" placeholder="Полное ФИО водителя">
+                    <button class="btn btn-primary" onclick="app.addDriver()">ДОБАВИТЬ</button>
+                </div>` : ''}
             </div>
         </div>`;
         this.renderFleetLocal();
@@ -410,38 +494,88 @@ const ui = {
         const ed = document.getElementById('fleet-tbody-d');
         if (!et || !ed) return;
         const canEdit = app.user.role === 'admin';
-        const qt = (document.getElementById('fleet-search-t')?.value || '').toLowerCase();
-        const qd = (document.getElementById('fleet-search-d')?.value || '').toLowerCase();
-        const trucks = app.trucks.filter(t => !qt || t.toLowerCase().includes(qt));
-        const drivers = app.drivers.filter(d => !qd || d.toLowerCase().includes(qd));
+        const qt = (document.getElementById('fleet-search-t') || {}).value || '';
+        const qd = (document.getElementById('fleet-search-d') || {}).value || '';
+        const g = (document.getElementById('fleet-filter-group') || {}).value || '';
+        const st = (document.getElementById('fleet-filter-status') || {}).value || '';
+        const q = qt.toLowerCase().trim();
+
+        let trucks = app.trucks.filter(t => {
+            if (g && t.group !== g) return false;
+            if (st && (t.status || 'free') !== st) return false;
+            if (!q) return true;
+            const d = app.driverForTruck(t);
+            return [t.plate, t.brand, t.owner, d ? d.fio : ''].join(' ').toLowerCase().includes(q);
+        });
+
+        const qdl = qd.toLowerCase().trim();
+        const drivers = app.drivers.filter(d => {
+            if (!qdl) return true;
+            const t = app.trucks.find(x => x.driverId === d.id);
+            return [d.fio, t ? t.plate : '', t ? t.brand : ''].join(' ').toLowerCase().includes(qdl);
+        });
+
         const visits = plate => app.db.filter(x => x.truck === plate).length;
-        document.getElementById('fleet-tcnt').textContent = `${trucks.length} ед.`;
-        document.getElementById('fleet-dcnt').textContent = `${drivers.length} чел.`;
-        et.innerHTML = trucks.map((t, i) => `<tr>
-            <td>${i + 1}</td><td><b>${this.esc(t)}</b></td>
-            <td><span class="badge badge-blue">${visits(t)}</span></td>
-            ${canEdit ? `<td><button class="btn btn-secondary btn-sm" onclick="app.removeTruck(${app.trucks.indexOf(t)})">УДАЛИТЬ</button></td>` : ''}
-        </tr>`).join('') || `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">Ничего не найдено</td></tr>`;
-        ed.innerHTML = drivers.map((d, i) => `<tr>
-            <td>${i + 1}</td><td><b>${this.esc(d)}</b></td>
-            ${canEdit ? `<td><button class="btn btn-secondary btn-sm" onclick="app.removeDriver(${app.drivers.indexOf(d)})">УДАЛИТЬ</button></td>` : ''}
-        </tr>`).join('') || `<tr><td colspan="3" style="text-align:center; padding:30px; color:var(--text-muted);">Ничего не найдено</td></tr>`;
+        const cnt = document.getElementById('fleet-tcnt');
+        const dcnt = document.getElementById('fleet-dcnt');
+        if (cnt) cnt.textContent = `${trucks.length} из ${app.trucks.length}`;
+        if (dcnt) dcnt.textContent = `${drivers.length} из ${app.drivers.length}`;
+
+        et.innerHTML = trucks.map((t, i) => {
+            const d = app.driverForTruck(t);
+            const busy = (t.status || 'free') !== 'free';
+            return `<tr>
+                <td>${i + 1}</td>
+                <td><b>${this.esc(t.plate)}</b></td>
+                <td>${this.esc(t.brand) || '—'}</td>
+                <td>${this.esc(t.group) || '—'}</td>
+                <td>${this.esc(t.owner) || '—'}</td>
+                <td>${d ? this.esc(d.fio) : '—'}</td>
+                <td><span class="badge badge-blue">${visits(t.plate)}</span></td>
+                <td>${busy ? '<span class="badge badge-gold">На территории</span>' : '<span class="badge badge-green">Свободно</span>'}</td>
+                ${canEdit ? `<td><button class="btn btn-secondary btn-sm" onclick="app.removeTruck('${this.esc(t.id)}')">УДАЛИТЬ</button></td>` : ''}
+            </tr>`;
+        }).join('') || `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">Ничего не найдено</td></tr>`;
+
+        ed.innerHTML = drivers.map((d, i) => {
+            const t = app.trucks.find(x => x.driverId === d.id);
+            return `<tr>
+                <td>${i + 1}</td>
+                <td><b>${this.esc(d.fio)}</b></td>
+                <td>${t ? `${this.esc(t.plate)} · ${this.esc(t.brand)}` : '—'}</td>
+                ${canEdit ? `<td><button class="btn btn-secondary btn-sm" onclick="app.removeDriver('${this.esc(d.id)}')">УДАЛИТЬ</button></td>` : ''}
+            </tr>`;
+        }).join('') || `<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">Ничего не найдено</td></tr>`;
     },
 
     /* ================= ПОЛЬЗОВАТЕЛИ (только админ) ================= */
     renderUsers(cont) {
         if (app.user.role !== 'admin') { cont.innerHTML = '<div class="empty-state">Доступ только для администратора</div>'; return; }
-        const rows = app.users.map(u => `<tr>
-            <td><b>${this.esc(u.name)}</b><br><small style="color:var(--text-muted);">${this.esc(u.login)}</small></td>
-            <td>${this.esc(u.tab) || '—'}</td>
-            <td><select class="role-select" onchange="app.updateUserRole('${u.id}', this.value)">
-                ${Object.keys(ROLES).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
-            </select></td>
-            <td><div class="btn-group-sm">
-                <button class="btn btn-outline btn-sm" onclick="app.resetUserPass('${u.id}')">ПАРОЛЬ</button>
-                <button class="btn btn-secondary btn-sm" onclick="app.deleteUser('${u.id}')">УДАЛИТЬ</button>
-            </div></td>
-        </tr>`).join('');
+        const rows = app.users.map(u => {
+            const online = app.isOnline(u);
+            return `<tr>
+                <td><b>${this.esc(u.name)}</b><br><small style="color:var(--text-muted);">${this.esc(u.login)}</small></td>
+                <td>${this.esc(u.tab) || '—'}</td>
+                <td><select class="role-select" onchange="app.updateUserRole('${this.esc(u.id)}', this.value)">
+                    ${Object.keys(ROLES).map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLES[r]}</option>`).join('')}
+                </select></td>
+                <td>${u.created ? this.fDate(u.created) : '—'}</td>
+                <td>${u.lastLogin ? this.fFull(u.lastLogin) : '—'}</td>
+                <td>${online ? '<span class="badge badge-green">в сети</span>' : '<span class="badge badge-gray">не в сети</span>'}</td>
+                <td><div class="btn-group-sm">
+                    <button class="btn btn-outline btn-sm" onclick="app.resetUserPass('${this.esc(u.id)}')">ПАРОЛЬ</button>
+                    <button class="btn btn-secondary btn-sm" onclick="app.deleteUser('${this.esc(u.id)}')">УДАЛИТЬ</button>
+                </div></td>
+            </tr>`;
+        }).join('');
+
+        const dbInfo = (typeof dbstore !== 'undefined' && dbstore.isSqlite)
+            ? (() => {
+                const s = dbstore.stats();
+                return `SQLite · ТС ${s.trucks} · водителей ${s.drivers} · талонов ${s.entries} · событий ${s.log}`;
+            })()
+            : 'локальный режим (localStorage)';
+
         cont.innerHTML = `
         <div class="dash-grid one">
             <div class="panel">
@@ -462,21 +596,23 @@ const ui = {
                 <div class="panel-head"><h3>Список пользователей</h3><span class="tool-count">${app.users.length}</span></div>
                 <div class="panel-body" style="padding-top:0;">
                     <div class="table-container" style="border:none; box-shadow:none; margin:0;">
-                        <table style="min-width:700px;">
-                            <thead><tr><th>ФИО / Логин</th><th>Табельный №</th><th>Роль</th><th>Действия</th></tr></thead>
+                        <table style="min-width:1000px;">
+                            <thead><tr><th>ФИО / Логин</th><th>Табельный №</th><th>Роль</th><th>Дата регистрации</th><th>Последний вход</th><th>Статус</th><th>Действия</th></tr></thead>
                             <tbody>${rows}</tbody>
                         </table></div>
                 </div>
             </div>
             <div class="panel">
-                <div class="panel-head"><h3>Резервное копирование</h3></div>
+                <div class="panel-head"><h3>База данных</h3><span class="tool-count">${dbInfo}</span></div>
                 <div class="panel-body">
-                    <p class="field-hint">База хранится локально на устройстве. Скачивайте резервную копию до очистки данных устройства.</p>
+                    <p class="field-hint">Файл .sqlite открывается в SQLiteStudio. Копия JSON — для переноса данных на другое устройство.</p>
                     <div class="fleet-add">
-                        <button class="btn btn-primary" onclick="app.backup()">СКАЧАТЬ КОПИЮ</button>
+                        <button class="btn btn-primary" onclick="app.downloadDb()">СКАЧАТЬ .SQLITE</button>
+                        <button class="btn btn-outline" onclick="app.backup()">КОПИЯ JSON</button>
                         <label class="btn btn-outline">ВОССТАНОВИТЬ
                             <input type="file" accept=".json,application/json" style="display:none;" onchange="app.restoreFromFile(this)">
                         </label>
+                        <button class="btn btn-secondary" onclick="app.resetDb()">СБРОС К ИСХОДНОЙ</button>
                     </div>
                 </div>
             </div>
@@ -484,19 +620,55 @@ const ui = {
     },
 
     /* ================= ЖУРНАЛ СОБЫТИЙ ================= */
-    renderLog(cont, q) {
+    renderLog(cont) {
+        const who = [...new Set(app.log.map(l => l.usr).filter(Boolean))].sort();
+        const acts = [...new Set(app.log.map(l => l.act).filter(Boolean))].sort();
+        cont.innerHTML = `
+        <div class="panel">
+            <div class="panel-head"><h3>Журнал событий</h3><span class="tool-count" id="log-count">${app.log.length}</span></div>
+            <div class="panel-body">
+                <div class="fleet-filters">
+                    <input id="log-q" class="search-input" placeholder="Поиск по тексту..." oninput="ui.renderLogRows()">
+                    <select id="log-user" onchange="ui.renderLogRows()">
+                        <option value="">Все пользователи</option>
+                        ${who.map(w => `<option value="${this.esc(w)}">${this.esc(w)}</option>`).join('')}
+                    </select>
+                    <select id="log-act" onchange="ui.renderLogRows()">
+                        <option value="">Все события</option>
+                        ${acts.map(a => `<option value="${this.esc(a)}">${this.esc(a)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="table-container" style="margin:0;">
+                    <table style="min-width:900px;">
+                        <thead><tr><th>Дата/Время</th><th>Кто</th><th>Событие</th><th>Детали</th><th>Устройство</th></tr></thead>
+                        <tbody id="log-tbody"></tbody>
+                    </table></div>
+                <p class="field-hint">Показываются последние 300 событий. Полная история — в файле базы.</p>
+            </div>
+        </div>`;
+        this.renderLogRows();
+    },
+
+    renderLogRows() {
+        const tb = document.getElementById('log-tbody');
+        if (!tb) return;
+        const q = ((document.getElementById('log-q') || {}).value || '').toLowerCase().trim();
+        const uf = (document.getElementById('log-user') || {}).value || '';
+        const af = (document.getElementById('log-act') || {}).value || '';
         let list = [...app.log].reverse();
-        if (q) list = list.filter(x => x.fs.includes(q));
-        const pList = this.paginate(list);
-        cont.innerHTML = `<div class="table-container"><table>
-            <thead><tr><th>Дата/Время</th><th>Кто</th><th>Событие</th><th>Инфо</th></tr></thead>
-            <tbody>${pList.map(l => `<tr>
-                <td>${l.dt} ${l.tm}</td><td><b>${this.esc(l.usr)}</b></td>
-                <td>${l.act.includes('ПРОСТОЙ') ? `<span class="idle-badge">${this.esc(l.act)}</span>` : this.esc(l.act)}</td>
-                <td>${this.esc(l.inf)}</td>
-            </tr>`).join('') || `<tr><td colspan="4" style="text-align:center; padding:40px; color:var(--text-muted);">Событий нет</td></tr>`}
-            </tbody></table></div>`;
-        this.drawPagination(list.length, cont);
+        if (uf) list = list.filter(l => l.usr === uf);
+        if (af) list = list.filter(l => l.act === af);
+        if (q) list = list.filter(l => (l.fs || '').includes(q));
+        const shown = list.slice(0, 300);
+        tb.innerHTML = shown.map(l => `<tr>
+            <td>${l.dt} ${l.tm}</td>
+            <td><b>${this.esc(l.usr)}</b><br><small style="color:var(--text-muted);">${ROLES[l.role] || ''}</small></td>
+            <td>${String(l.act).includes('ПРОСТОЙ') ? `<span class="idle-badge">${this.esc(l.act)}</span>` : this.esc(l.act)}</td>
+            <td>${this.esc(l.inf)}</td>
+            <td><small style="color:var(--text-muted);">${this.esc(l.device || '')}</small></td>
+        </tr>`).join('') || `<tr><td colspan="5" style="text-align:center; padding:40px; color:var(--text-muted);">Событий нет</td></tr>`;
+        const counter = document.getElementById('log-count');
+        if (counter) counter.textContent = `${shown.length} из ${list.length}`;
     },
 
     /* ================= АНАЛИТИКА ================= */
@@ -1052,7 +1224,7 @@ th,td{border:1px solid #000;padding:4px;text-align:center;font-size:11px}
 };
 
 /* ========== ЗАПУСК ========== */
-app.init();
+app.boot();
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') ui.closeModal();
@@ -1069,10 +1241,3 @@ document.addEventListener('click', e => {
         ui.closePopovers();
     }
 });
-
-if (app.user) {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'grid';
-    ui.init();
-    ui.authMode();
-}

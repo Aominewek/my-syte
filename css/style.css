@@ -675,7 +675,7 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
     .btn { padding: 10px 13px !important; }
 }
 /* ============================================================
-   ÄÎÏÎËÍÅÍÈß: ÓÂÅÄÎÌËÅÍÈß / ÏĞÎÔÈËÜ / ÊÎÌÁÎÁÎÊÑ / ÏÎÄÄÅĞÆÊÀ / ÔÓÒÅĞ
+   ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ï¿½
    ============================================================ */
 .top-tools { display: inline-flex; gap: 8px; align-items: center; }
 .tool-wrap { position: relative; }
@@ -747,7 +747,7 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
 .profile-line { padding: 6px 10px; font-size: 13.5px; color: var(--text); }
 .profile-line b { color: var(--sng-dark); font-size: 14px; }
 
-/* --- Combobox (âûïàäàşùèé ñïèñîê ñ ïîèñêîì) --- */
+/* --- Combobox (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½) --- */
 .combo { position: relative; }
 .combo input { margin-bottom: 0; }
 .combo-list {
@@ -771,7 +771,7 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
 .combo-item.sel { background: #e2edfb; color: var(--sng-blue); font-weight: 600; }
 .combo-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-/* --- Ïîääåğæêà --- */
+/* --- ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ --- */
 .msg-card {
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -790,7 +790,7 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
 .msg-reply input { flex: 1; }
 .msg-form textarea { resize: vertical; }
 
-/* --- Ôóòåğ --- */
+/* --- ï¿½ï¿½ï¿½ï¿½ï¿½ --- */
 .app-footer {
     text-align: center;
     color: var(--text-muted);
@@ -799,3 +799,45 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
     border-top: 1px solid var(--border);
     margin-top: 10px;
 }
+
+/* --- Ñ„Ğ¸Ğ»ÑŒÑ‚Ñ€Ñ‹ ÑĞ¿Ñ€Ğ°Ğ²Ğ¾Ñ‡Ğ½Ğ¸ĞºĞ° Ğ¸ Ğ¶ÑƒÑ€Ğ½Ğ°Ğ»Ğ° --- */
+.fleet-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.fleet-filters .search-input {
+    flex: 1 1 220px;
+    max-width: none;
+    margin: 0;
+}
+.fleet-filters select,
+.fleet-add select {
+    flex: 0 1 200px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    font-size: 13.5px;
+    color: var(--text);
+}
+.combo-item small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    margin-top: 2px;
+}
+.combo-sub {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 12px;
+}
+.db-status {
+    margin-top: 8px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+.db-status.warn { color: var(--accent); }

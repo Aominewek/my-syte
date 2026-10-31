@@ -1,11 +1,15 @@
-const CACHE_NAME = 'ctb-cache-v1';
+const CACHE_NAME = 'ctb-cache-v2';
 const APP_SHELL = [
     'index.html',
     'manifest.webmanifest',
     'css/style.css',
     'js/data.js',
+    'js/db.js',
     'js/engine.js',
     'js/ui.js',
+    'vendor/sql.js/sql-wasm.js',
+    'vendor/sql.js/sql-wasm.wasm',
+    'data/ctb.sqlite',
     'assets/logo.svg',
     'assets/icons/icon-192.png',
     'assets/icons/icon-512.png',
