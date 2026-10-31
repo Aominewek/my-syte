@@ -344,13 +344,34 @@
     updateStep(id, field, nextStatus) {
         const i = this.db.find(x => x.id === id);
         if (!i) return;
-        if (field === 't_out' && !this.can('admin', 'kpp')) return;
-        if ((field === 't_s_in' || field === 't_s_out') && !this.can('admin', 'store')) return;
-        if (field === 't_e_in' && !this.can('admin', 'eng')) return;
+        if (i.t_out) { ui.toast('Талон уже закрыт', 'err'); return; }
+
+        const perm = {
+            t_e_in: ['admin', 'eng'],
+            t_e_out: ['admin', 'eng'],
+            t_s_in: ['admin', 'store'],
+            t_s_out: ['admin', 'store'],
+            t_out: ['admin', 'kpp']
+        }[field];
+        if (!perm || !this.can(...perm)) { ui.toast('Недостаточно прав для этого действия', 'err'); return; }
+
+        if (field === 't_e_out' && !i.p_data) { ui.toast('Сначала оформите талон', 'err'); return; }
+        if (field === 't_s_in' && !i.p_data) { ui.toast('Инженер ещё не выдал талон', 'err'); return; }
+        if (field === 't_s_out' && !i.t_s_in) { ui.toast('Сначала зафиксируйте приезд к кладовщику', 'err'); return; }
+        if (field === 't_out' && !i.t_s_out) { ui.toast('Кладовщик ещё не оформил уезд', 'err'); return; }
+
         i[field] = Date.now();
         if (nextStatus) i.status = nextStatus;
         if (field === 't_out') this.setTruckStatus(i.truckId, 'free');
-        this.logAction('Статус', `Талон №${i.num} — ${i.status}`, 'entry', i.id);
+
+        const label = {
+            t_e_in: 'Приезд к инженеру',
+            t_e_out: 'Уехал к кладовщику',
+            t_s_in: 'Приезд к кладовщику',
+            t_s_out: 'Уехал от кладовщика',
+            t_out: 'Выехал с базы'
+        }[field] || 'Статус';
+        this.logAction(label, `Талон №${i.num} — ${i.truck}`, 'entry', i.id);
         this.save();
     },
 
@@ -386,6 +407,7 @@
         if (!this.can('admin', 'eng')) return;
         const i = this.db.find(x => x.id === this.editingId);
         if (!i) return;
+        if (!i.t_e_in) { ui.toast('Сначала зафиксируйте приезд водителя', 'err'); return; }
         i.p_data = {
             cust: document.getElementById('p-customer').value.trim(),
             eng: document.getElementById('p-eng-name').value.trim(),
@@ -397,10 +419,9 @@
             type2: document.getElementById('p-type-2').checked,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-        i.t_e_out = Date.now();
         i.status = STATUS.READY;
-        this.logAction('Маршрутизация', `Талон №${i.num} готов — ${i.truck}`, 'entry', i.id);
-        this.save(); ui.closeModal(); ui.printPermit(i);
+        this.logAction('Талон выдан', `Талон №${i.num} — ${i.truck} / ${i.driver}`, 'entry', i.id);
+        this.save(); ui.closeModal(); ui.downloadPermit(i);
     },
 
     deleteRecord(id) {

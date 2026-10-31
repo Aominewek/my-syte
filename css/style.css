@@ -841,3 +841,15 @@ td:first-child { font-weight: 600; color: var(--sng-dark); }
     color: rgba(255, 255, 255, 0.55);
 }
 .db-status.warn { color: var(--accent); }
+
+/* --- этапы маршрута в карточке --- */
+.card-stage {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.45;
+}
+.card-wait {
+    font-size: 12px;
+    color: var(--text-muted);
+}

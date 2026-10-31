@@ -29,15 +29,17 @@ const DEFAULT_USERS = [
 const CRANES = ['Кран №1', 'Кран №2', 'Кран №3', 'Кран №4'];
 
 const CRANE_LIMIT_MIN = 30;
+const STAY_LIMIT_MIN = 90;
 
 const STATUS = {
     IN: 'На территории',
-    STORE_IN: 'У кладовщика',
-    STORE_OUT: 'Выехал от кладовщика',
     ENG_IN: 'У инженера',
     READY: 'Получил талон',
+    TO_STORE: 'К кладовщику',
+    STORE_IN: 'У кладовщика',
     LOADING: 'На погрузке',
     LOADED: 'Погрузка завершена',
+    STORE_OUT: 'Готов к выезду',
     EXITED: 'Выехал'
 };
 

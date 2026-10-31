@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctb-cache-v2';
+const CACHE_NAME = 'ctb-cache-v3';
 const APP_SHELL = [
     'index.html',
     'manifest.webmanifest',
@@ -9,6 +9,7 @@ const APP_SHELL = [
     'js/ui.js',
     'vendor/sql.js/sql-wasm.js',
     'vendor/sql.js/sql-wasm.wasm',
+    'vendor/xlsx/xlsx.bundle.js',
     'data/ctb.sqlite',
     'assets/logo.svg',
     'assets/icons/icon-192.png',

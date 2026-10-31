@@ -65,7 +65,7 @@ const ui = {
         this.setPage(menu[0].id);
         setInterval(() => {
             if (document.hidden) return;
-            if (['dash', 'active', 'boss'].includes(app.currentPage)) this.render();
+            if (['dash', 'active', 'boss', 'journal'].includes(app.currentPage)) this.render();
             this.refreshBell();
         }, 30000);
         this.dbStatus();
@@ -126,12 +126,13 @@ const ui = {
     statusBadge(st) {
         const map = {
             [STATUS.IN]: 'badge-blue',
-            [STATUS.STORE_IN]: 'badge-blue',
-            [STATUS.STORE_OUT]: 'badge-gold',
             [STATUS.ENG_IN]: 'badge-gold',
             [STATUS.READY]: 'badge-gold',
+            [STATUS.TO_STORE]: 'badge-blue',
+            [STATUS.STORE_IN]: 'badge-blue',
             [STATUS.LOADING]: 'badge-gold',
             [STATUS.LOADED]: 'badge-green',
+            [STATUS.STORE_OUT]: 'badge-green',
             [STATUS.EXITED]: 'badge-gray'
         };
         return `<span class="badge ${map[st] || 'badge-gray'}">${this.esc(st)}</span>`;
@@ -342,30 +343,51 @@ const ui = {
 
         let actions = '';
         const r = app.user.role;
-        if (r === 'admin' || r === 'kpp') actions += `<button class="btn btn-danger btn-sm" onclick="app.updateStep(${i.id}, 't_out', '${STATUS.EXITED}')">ВЫЕЗД</button>`;
-        if (r === 'admin' || r === 'store') {
-            if (!i.t_s_in) actions += `<button class="btn btn-primary btn-sm" onclick="app.updateStep(${i.id}, 't_s_in', '${STATUS.STORE_IN}')">ПРИБЫЛ СКЛАД</button>`;
-            else if (!i.t_s_out) actions += `<button class="btn btn-success btn-sm" onclick="app.updateStep(${i.id}, 't_s_out', '${STATUS.STORE_OUT}')">УБЫЛ СКЛАД</button>`;
+        const isEng = r === 'admin' || r === 'eng';
+        const isStore = r === 'admin' || r === 'store';
+        const isKpp = r === 'admin' || r === 'kpp';
+
+        if (isEng && !i.t_e_in) {
+            actions += `<button class="btn btn-primary btn-sm" onclick="app.updateStep(${i.id}, 't_e_in', '${STATUS.ENG_IN}')">ПРИЕЗД</button>`;
         }
-        if (r === 'admin' || r === 'eng') {
-            if (!i.t_e_in) actions += `<button class="btn btn-primary btn-sm" onclick="app.updateStep(${i.id}, 't_e_in', '${STATUS.ENG_IN}')">ПРИБЫЛ ИНЖ.</button>`;
-            else if (!i.p_data) actions += `<button class="btn btn-accent btn-sm" onclick="ui.openModal(${i.id})">ТАЛОН</button>`;
+        if (isEng && i.t_e_in && !i.p_data) {
+            actions += `<button class="btn btn-accent btn-sm" onclick="ui.openModal(${i.id})">ТАЛОН</button>`;
         }
-        if (r === 'admin' || r === 'store' || r === 'eng') {
+        if (isEng && i.p_data && !i.t_e_out) {
+            actions += `<button class="btn btn-success btn-sm" onclick="app.updateStep(${i.id}, 't_e_out', '${STATUS.TO_STORE}')">УЕЗД</button>`;
+        }
+        if (isStore && i.t_e_out && !i.t_s_in) {
+            actions += `<button class="btn btn-primary btn-sm" onclick="app.updateStep(${i.id}, 't_s_in', '${STATUS.STORE_IN}')">ПРИЕЗД</button>`;
+        }
+        if (isStore && i.t_s_in && !i.t_s_out) {
             if (!i.craneStart) actions += `<button class="btn btn-outline btn-sm" onclick="ui.openCrane(${i.id})">КРАН</button>`;
             else if (!i.craneEnd) actions += `<button class="btn btn-accent btn-sm" onclick="ui.openCrane(${i.id})">КРАН: ИДЁТ</button>`;
+            actions += `<button class="btn btn-success btn-sm" onclick="app.updateStep(${i.id}, 't_s_out', '${STATUS.STORE_OUT}')">УЕЗД</button>`;
+        }
+        if (isKpp && i.t_s_out && !i.t_out) {
+            actions += `<button class="btn btn-danger btn-sm" onclick="app.updateStep(${i.id}, 't_out', '${STATUS.EXITED}')">ВЫЕХАЛ С БАЗЫ</button>`;
         }
         if (r === 'admin') actions += `<button class="btn btn-secondary btn-sm" onclick="app.deleteRecord(${i.id})">УДАЛИТЬ</button>`;
+        if (!actions) actions = '<span class="card-wait">Ожидает следующего этапа</span>';
 
         const craneInfo = i.craneStart ? (i.craneEnd
             ? `<div class="crane-line">Кран: <b>${this.esc(i.crane)}</b> · ${this.dur(i.craneEnd - i.craneStart)}${i.idle > 0 ? ` · <span class="idle-text">простой ${i.idle} мин.</span>` : ''}</div>`
             : `<div class="crane-line">Кран: <b>${this.esc(i.crane)}</b> · загрузка ${this.mins(i.craneStart)} мин.</div>`) : '';
+
+        const chain = [];
+        if (i.t_e_in) chain.push(`Инженер ${this.fTime(i.t_e_in)}`);
+        if (i.p_data) chain.push(`талон ${i.p_data.time || ''}`);
+        if (i.t_e_out) chain.push(`к складу ${this.fTime(i.t_e_out)}`);
+        if (i.t_s_in) chain.push(`Кладовщик ${this.fTime(i.t_s_in)}`);
+        if (i.t_s_out) chain.push(`готов ${this.fTime(i.t_s_out)}`);
+        const stageLine = chain.length ? `<div class="card-stage">${this.esc(chain.join(' · '))}</div>` : '';
 
         return `
             <div class="card" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s;">
                 <div class="card-head"><h4>${this.esc(i.truck)}</h4><span class="card-num">№${i.num}</span></div>
                 <div class="card-driver">${this.esc(i.driver)}</div>
                 <div class="card-badges">${this.statusBadge(i.status)}</div>
+                ${stageLine}
                 <div class="timer-box">
                     <div class="timer-row"><span>На базе: <b>${mins} мин.</b></span><span>Предел 90 мин.</span></div>
                     <div class="progress-bg"><div class="progress-fill" style="width:${percent}%; background:${color}"></div></div>
@@ -403,6 +425,12 @@ const ui = {
             </tbody></table></div>`;
     },
 
+    idleMins(e) {
+        const end = e.t_out || Date.now();
+        const total = Math.floor((end - e.t_in) / 60000);
+        return Math.max(0, total - STAY_LIMIT_MIN);
+    },
+
     /* ================= ЖУРНАЛ ЗАПИСЕЙ ================= */
     renderJournal(cont, q) {
         let list = [...app.db].sort((a, b) => b.t_in - a.t_in);
@@ -417,19 +445,24 @@ const ui = {
         const pList = this.paginate(list);
         cont.innerHTML = `<div class="table-container"><table>
             <thead><tr>
-                <th>№</th><th>Транспорт</th><th>Водитель</th>
-                <th>Въезд</th><th>Кладовщик</th><th>Инженер</th><th>Кран</th>
-                <th>Выезд</th><th>Статус</th>
+                <th>№</th><th>Транспорт</th><th>Водитель</th><th>Въезд</th>
+                <th>Инженер: приезд / талон / уезд</th>
+                <th>Кладовщик: приезд / уезд</th>
+                <th>Кран</th><th>Простой</th><th>Выезд</th><th>Статус</th>
             </tr></thead>
-            <tbody>${pList.map(i => `<tr>
+            <tbody>${pList.map(i => {
+                const idle = this.idleMins(i);
+                return `<tr>
                 <td><b>${i.num}</b></td><td>${this.esc(i.truck)}</td><td>${this.esc(i.driver)}</td>
                 <td>${this.fFull(i.t_in)}</td>
+                <td>${i.t_e_in ? `<b>${this.fTime(i.t_e_in)}</b>` : '—'}${i.p_data ? ` · ${this.esc(i.p_data.time || '')}` : ''}${i.t_e_out ? ` / ${this.fTime(i.t_e_out)}` : ''}</td>
                 <td>${i.t_s_in ? `<b>${this.fTime(i.t_s_in)}</b>` : '—'}${i.t_s_out ? ` / ${this.fTime(i.t_s_out)}` : ''}</td>
-                <td>${i.t_e_in ? `<b>${this.fTime(i.t_e_in)}</b>` : '—'}${i.t_e_out ? ` / ${this.fTime(i.t_e_out)}` : ''}</td>
                 <td>${i.crane ? `<b>${this.esc(i.crane)}</b>${i.craneEnd ? `<br><small>${this.dur(i.craneEnd - i.craneStart)}${i.idle > 0 ? ` · <span class="idle-text">+${i.idle}</span>` : ''}</small>` : ''}` : '—'}</td>
+                <td>${idle > 0 ? `<span class="idle-badge">${idle} мин.</span>` : '<span class="badge badge-gray">0</span>'}</td>
                 <td>${this.fFull(i.t_out)}</td>
                 <td>${this.statusBadge(i.status)}</td>
-            </tr>`).join('') || `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-muted);">Записей нет</td></tr>`}
+            </tr>`;
+            }).join('') || `<tr><td colspan="10" style="text-align:center; padding:40px; color:var(--text-muted);">Записей нет</td></tr>`}
             </tbody></table></div>`;
         this.drawPagination(list.length, cont);
     },
@@ -879,14 +912,16 @@ const ui = {
         const role = app.user.role;
         const now = Date.now();
         const list = [];
-        const over = app.db.filter(x => !x.t_out && now - x.t_in > 90 * 60000).length;
+        const over = app.db.filter(x => !x.t_out && now - x.t_in > STAY_LIMIT_MIN * 60000).length;
         const loading = app.db.filter(x => x.status === STATUS.LOADING);
-        const waitStore = app.db.filter(x => x.status === STATUS.STORE_IN && !x.t_s_out).length;
-        const waitEng = app.db.filter(x => x.status === STATUS.ENG_IN && !x.p_data).length;
+        const waitStore = app.db.filter(x => !x.t_out && ((x.t_e_out && !x.t_s_in) || (x.t_s_in && !x.t_s_out))).length;
+        const waitEng = app.db.filter(x => !x.t_out && x.t_e_in && !x.p_data).length;
+        const readyExit = app.db.filter(x => x.t_s_out && !x.t_out).length;
         const unreadMsgs = app.msgs.filter(m => !m.answer).length;
 
         if (role === 'admin' || role === 'kpp') {
             if (over > 0) list.push({ t: `Превышение времени: ${over} ТС на территории`, page: 'active', icon: 'red' });
+            if (readyExit > 0) list.push({ t: `Готовы к выезду: ${readyExit}`, page: 'active', icon: 'blue' });
         }
         if (role === 'admin' || role === 'store') {
             if (waitStore > 0) list.push({ t: `На складе ожидают: ${waitStore}`, page: 'active', icon: 'blue' });
@@ -1062,54 +1097,112 @@ const ui = {
         this.closePopovers();
     },
 
-    printPermit(i) {
-        const d = i.p_data;
-        const w = window.open('', '', 'width=900,height=1000');
-        w.document.write(`
-<html><head><style>
-body{font-family:Arial;padding:20px}
-.page{width:100%;height:140mm;border:1px solid #000;padding:15px;position:relative;box-sizing:border-box;page-break-after:always;margin-bottom:20px}
-.header{text-align:center;margin-bottom:15px}
-.line{border-bottom:1px solid #000;margin-bottom:8px;display:flex;justify-content:space-between;font-size:14px}
-.footer-box{border:2px dashed #000;padding:10px;text-align:center;margin-top:20px}
-table{width:100%;border-collapse:collapse}
-th,td{border:1px solid #000;padding:4px;text-align:center;font-size:11px}
-.sign{width:120px;border-bottom:1px solid #000;display:inline-block}
-@media print{.page{page-break-after:always}}
-</style></head><body>
-<div class="page">
-<div style="display:flex;justify-content:space-between"><span>Время выдачи талона: <b>${this.esc(d.time)}</b></span><span>A 4027</span></div>
-<div class="header"><h1>Талон-разрешение</h1><h3>"___" ___________ 2026</h3></div>
-<div class="line"><span>№ а/м: <b>${this.esc(i.truck)}</b></span><span>Водитель: <b>${this.esc(i.driver)}</b></span></div>
-<div class="line"><span>Заказчик: <b>${this.esc(d.cust)}</b></span></div>
-<div class="line"><span>Инженер ООГ: <b>${this.esc(d.eng)}</b></span><span>Подпись: <span class="sign"></span></span></div>
-<div class="line"><span>№ крана: <b>${this.esc(d.crane)}</b></span><span>№ стеллажа: <b>${this.esc(d.shelf)}</b></span></div>
-<div class="line"><span>Типоразмер труб: <b>${this.esc(d.pipe)}</b></span></div>
-<div class="line"><span>Количество: <b>${this.esc(d.qty)}</b></span></div>
-<div class="line"><span>Заведующий складом, кладовщик:</span><span>Подпись: <span class="sign"></span></span></div>
-<p>Погрузка: [${d.type1 ? '<b>X</b>' : ' '}] труба [${d.type2 ? '<b>X</b>' : ' '}] патрубки</p>
-<div class="footer-box"><h2 style="margin:0">ВОДИТЕЛЬ ВНИМАНИЕ</h2>
-<p style="margin:5px">После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.</p></div>
-</div>
-<div class="page">
-<h3 style="text-align:center">Спецификация труб</h3>
-<table><thead><tr><th>№</th><th>Краткое наименование труб</th><th>Кол-во шт.</th><th>Метры</th><th>Доп. информация</th></tr></thead>
-<tbody>${Array(18).fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>').join('')}</tbody></table>
-<p style="margin-top:15px;">Кладовщик: ___________________________ (подпись)</p>
-</div>
-</body></html>`);
-        w.document.close();
+    downloadPermit(i) {
+        if (typeof XLSX === 'undefined') { this.toast('Модуль Excel не загружен', 'err'); return; }
+        const d = i.p_data || {};
+        const thin = { style: 'thin', color: { rgb: 'FF000000' } };
+        const box = { top: thin, bottom: thin, left: thin, right: thin };
+        const centre = { horizontal: 'center', vertical: 'center', wrapText: true };
+        const left = { horizontal: 'left', vertical: 'center', wrapText: true };
+        const stTitle = { font: { name: 'Arial', sz: 14, bold: true }, alignment: centre };
+        const stSub = { font: { name: 'Arial', sz: 10 }, alignment: centre };
+        const stLab = { font: { name: 'Arial', sz: 9, bold: true }, alignment: left, border: box };
+        const stVal = { font: { name: 'Arial', sz: 11 }, alignment: left, border: box };
+        const stBig = { font: { name: 'Arial', sz: 11, bold: true }, alignment: centre, border: box };
+
+        const ws = {};
+        const put = (addr, v, s) => { ws[addr] = { v: v == null ? '' : v, t: 's', s }; };
+        const merge = (r1, c1, r2, c2) => ({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+
+        const dt = new Date(i.t_in);
+        const p = n => String(n).padStart(2, '0');
+        const dateStr = `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()}`;
+
+        put('A1', 'ТАЛОН-РАЗРЕШЕНИЕ', stTitle);
+        put('A2', 'ЦТБ «Сургутнефтегаз» · контроль транспорта', stSub);
+        put('A3', `Форма A 4027 · оформлен ${dateStr} в ${d.time || ''}`, stSub);
+
+        put('A5', '№ талона', stLab); put('B5', String(i.num), stBig);
+        put('C5', 'Дата', stLab); put('D5', dateStr, stVal);
+        put('E5', 'Время', stLab); put('F5', d.time || '', stVal);
+
+        put('A6', 'Гос. номер', stLab); put('B6', i.truck || '', stBig);
+        put('C6', 'Марка ТС', stLab); put('D6', i.brand || '', stVal);
+        put('E6', 'Заказчик', stLab); put('F6', d.cust || '', stVal);
+
+        put('A7', 'Водитель', stLab); put('B7', i.driver || '', stVal);
+        put('A8', 'Организация', stLab); put('B8', i.org || '', stVal);
+
+        put('A9', 'Инженер ООГ', stLab); put('B9', d.eng || '', stVal);
+        put('D9', 'Подпись', stLab);
+
+        put('A10', '№ крана', stLab); put('B10', d.crane || '', stVal);
+        put('C10', '№ стеллажа', stLab); put('D10', d.shelf || '', stVal);
+        put('E10', 'Количество', stLab); put('F10', d.qty || '', stVal);
+
+        put('A11', 'Типоразмер труб', stLab); put('B11', d.pipe || '', stVal);
+        put('A12', 'Вид погрузки', stLab);
+        put('B12', `${d.type1 ? '[X]' : '[ ]'} труба      ${d.type2 ? '[X]' : '[ ]'} патрубки`, stVal);
+
+        put('A14', 'ВОДИТЕЛЬ, ВНИМАНИЕ!', { font: { name: 'Arial', sz: 11, bold: true }, alignment: centre });
+        put('A15', 'После оформления груза и получения ТТН необходимо покинуть территорию ЦТБ в течение 10 минут.', { font: { name: 'Arial', sz: 10 }, alignment: centre, border: box });
+
+        put('A17', 'Кладовщик', stLab); put('D17', 'Подпись', stLab);
+
+        ws['!merges'] = [
+            merge(0, 0, 0, 5),
+            merge(1, 0, 1, 5),
+            merge(2, 0, 2, 5),
+            merge(6, 1, 6, 5),
+            merge(7, 1, 7, 5),
+            merge(8, 1, 8, 2),
+            merge(8, 4, 8, 5),
+            merge(10, 1, 10, 5),
+            merge(11, 1, 11, 5),
+            merge(13, 0, 13, 5),
+            merge(14, 0, 14, 5),
+            merge(16, 1, 16, 2),
+            merge(16, 4, 16, 5)
+        ];
+        ws['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 16 }];
+        ws['!rows'] = [{ hpt: 26 }, { hpt: 16 }, { hpt: 16 }, { hpt: 8 }, { hpt: 20 }];
+        ws['!ref'] = 'A1:F17';
+        ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
+
+        const spec = {};
+        const head = ['№', 'Краткое наименование труб', 'Кол-во шт.', 'Метры', 'Доп. информация'];
+        head.forEach((h, c) => {
+            spec[XLSX.utils.encode_cell({ r: 0, c })] = { v: h, t: 's', s: stLab };
+        });
+        for (let r = 1; r <= 18; r++) {
+            spec[XLSX.utils.encode_cell({ r, c: 0 })] = { v: r, t: 'n', s: stBig };
+            for (let c = 1; c < 5; c++) {
+                spec[XLSX.utils.encode_cell({ r, c })] = { v: '', t: 's', s: stVal };
+            }
+        }
+        spec['!ref'] = 'A1:E19';
+        spec['!cols'] = [{ wch: 6 }, { wch: 40 }, { wch: 12 }, { wch: 12 }, { wch: 30 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Талон');
+        XLSX.utils.book_append_sheet(wb, spec, 'Спецификация');
+        XLSX.writeFile(wb, `Талон_${i.num}_${String(i.truck).replace(/[^0-9А-Яа-яA-Za-z]/g, '')}.xlsx`);
+        this.toast('Талон скачан в Excel', 'ok');
     },
 
     /* ================= ЭКСПОРТ ================= */
     exportJournalCSV() {
         const rows = app.db.map(x => ({
-            '№': x.num, 'Транспорт': x.truck, 'Водитель': x.driver,
-            'Въезд': this.fFull(x.t_in), 'Кладовщик приб.': x.t_s_in ? this.fTime(x.t_s_in) : '',
-            'Кладовщик уб.': x.t_s_out ? this.fTime(x.t_s_out) : '',
-            'Инженер приб.': x.t_e_in ? this.fTime(x.t_e_in) : '',
-            'Инженер уб.': x.t_e_out ? this.fTime(x.t_e_out) : '',
-            'Кран': x.crane || '', 'Простой мин': x.idle || 0,
+            '№': x.num, 'Транспорт': x.truck, 'Марка': x.brand || '', 'Водитель': x.driver,
+            'Въезд': this.fFull(x.t_in),
+            'Инженер приезд': x.t_e_in ? this.fTime(x.t_e_in) : '',
+            'Талон выдан': x.p_data ? (x.p_data.time || 'да') : '',
+            'Инженер уезд': x.t_e_out ? this.fTime(x.t_e_out) : '',
+            'Кладовщик приезд': x.t_s_in ? this.fTime(x.t_s_in) : '',
+            'Кладовщик уезд': x.t_s_out ? this.fTime(x.t_s_out) : '',
+            'Кран': x.crane || '',
+            'Простой крана, мин': x.idle || 0,
+            'Простой на базе, мин': this.idleMins(x),
             'Выезд': this.fFull(x.t_out), 'Статус': x.status
         }));
         app.exportCSV(rows, `Журнал_${new Date().toISOString().slice(0, 10)}.csv`);
